@@ -8,7 +8,6 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
-import java.util.Map;
 
 @Getter
 @Setter
@@ -30,8 +29,8 @@ public class Journal {
     private String operation;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "donnees")
-    private Map<String, Object> donnees;
+    @Column(name = "donnees", columnDefinition = "jsonb")
+    private String donnees;
 
     @Column(name = "version")
     private Integer version;
@@ -43,6 +42,5 @@ public class Journal {
     @ColumnDefault("false")
     @Column(name = "synchronise")
     private Boolean synchronise;
-
 
 }

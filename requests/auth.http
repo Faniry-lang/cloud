@@ -1,3 +1,36 @@
+GET http://127.0.0.1:8080/auth/health
+Accept: application/json
+
+### Get Auth Mode - Affiche le mode configure et effectif
+### configuredMode: AUTO | ONLINE | OFFLINE (dans application.properties)
+### effectiveMode: ONLINE | OFFLINE (determine automatiquement)
+GET http://127.0.0.1:8080/auth/mode
+Accept: application/json
+
+### Register - Inscription d'un nouvel utilisateur
+### ONLINE: Cree dans Firebase Auth + Firestore
+### OFFLINE: Cree dans PostgreSQL local
+POST http://127.0.0.1:8080/auth/register
+Content-Type: application/json
+
+{
+  "email": "monbebe@gmail.com",
+  "password": "password123",
+  "nom": "Nouveau bebe"
+}
+
+### Login - Connexion utilisateur
+### ONLINE: Firebase Auth
+### OFFLINE: PostgreSQL local
+POST http://127.0.0.1:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "nouveau@example.com",
+  "password": "password123"
+}
+
+### Login - Connexion avec compte Firebase existant
 POST http://127.0.0.1:8080/auth/login
 Content-Type: application/json
 
@@ -5,3 +38,50 @@ Content-Type: application/json
   "email": "ranaivosonf647@gmail.com",
   "password": "ranaivopromail"
 }
+
+### Login - Test echec connexion (mauvais mot de passe)
+POST http://127.0.0.1:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "wrongpassword"
+}
+
+### Debloquer un utilisateur (admin)
+POST http://127.0.0.1:8080/auth/debloquer-utilisateur
+Content-Type: application/json
+
+{
+  "email": "test@example.com"
+}
+
+### ===================== SYNCHRONISATION =====================
+
+### Statut de synchronisation
+### Affiche le nombre d'entrees en attente et la disponibilite Firestore
+GET http://127.0.0.1:8080/sync/status
+Accept: application/json
+
+### Push - Synchroniser Local -> Firebase
+### - Envoie les donnees locales vers Firestore
+### - Cree les comptes Firebase Auth pour les utilisateurs sans firebase_uid
+### - Marque les entrees du journal comme synchronisees
+POST http://127.0.0.1:8080/sync/push
+Accept: application/json
+
+### Pull - Synchroniser Firebase -> Local
+### - Importe les donnees depuis Firestore vers PostgreSQL
+### - Met a jour les utilisateurs locaux avec les versions plus recentes
+POST http://127.0.0.1:8080/sync/pull
+Accept: application/json
+
+### Synchroniser tout (bidirectionnel)
+### Combine push et pull
+POST http://127.0.0.1:8080/sync/all
+Accept: application/json
+
+### Synchroniser uniquement les utilisateurs
+POST http://127.0.0.1:8080/sync/utilisateurs
+Accept: application/json
+

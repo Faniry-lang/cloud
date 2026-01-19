@@ -21,11 +21,62 @@ public class FirebaseAuthService {
     private String firebaseApiKey;
 
     private static final String FIREBASE_AUTH_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=";
+    private static final String FIREBASE_SIGNUP_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=";
 
     private final RestTemplate restTemplate;
 
     public FirebaseAuthService() {
         this.restTemplate = new RestTemplate();
+    }
+
+    /**
+     * Cree un nouvel utilisateur dans Firebase Auth
+     * @return le firebase_uid de l'utilisateur cree, ou null en cas d'erreur
+     */
+    @SuppressWarnings("unchecked")
+    public String createUser(String email, String password) {
+        try {
+            String url = FIREBASE_SIGNUP_URL + firebaseApiKey;
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("email", email);
+            body.put("password", password);
+            body.put("returnSecureToken", true);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+            @SuppressWarnings("rawtypes")
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+
+            if (response.getBody() != null) {
+                Map<String, Object> responseBody = response.getBody();
+                return (String) responseBody.get("localId"); // firebase_uid
+            }
+
+            return null;
+        } catch (HttpClientErrorException e) {
+            String error = extractFirebaseError(e);
+            System.err.println("Erreur creation Firebase: " + error);
+
+            // Si l'email existe deja, tenter de recuperer le localId via login
+            if (error.contains("EMAIL_EXISTS")) {
+                LoginRequest loginReq = new LoginRequest();
+                loginReq.setEmail(email);
+                loginReq.setPassword(password);
+                LoginResponse loginResp = login(loginReq);
+                if (loginResp.isSuccess()) {
+                    return loginResp.getData().getLocalId();
+                }
+            }
+
+            return null;
+        } catch (Exception e) {
+            System.err.println("Erreur creation utilisateur Firebase: " + e.getMessage());
+            return null;
+        }
     }
 
     @SuppressWarnings("unchecked")
