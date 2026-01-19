@@ -1,9 +1,6 @@
 package itu.cloud.entities;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
@@ -12,7 +9,6 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.Map;
-import java.util.UUID;
 
 @Getter
 @Setter
@@ -20,11 +16,12 @@ import java.util.UUID;
 @Table(name = "journal")
 public class Journal {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    private UUID id;
+    private Integer id;
 
     @Column(name = "id_entite")
-    private UUID idEntite;
+    private Integer idEntite;
 
     @Column(name = "type_entite", length = Integer.MAX_VALUE)
     private String typeEntite;

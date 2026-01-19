@@ -5,18 +5,19 @@ import jakarta.persistence.Embeddable;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.io.Serializable;
-import java.util.UUID;
 
 @Getter
 @Setter
 @EqualsAndHashCode
 @Embeddable
 public class HistoriqueStatutSignalementId implements Serializable {
-    private static final long serialVersionUID = 7061133776568303804L;
+    private static final long serialVersionUID = -2222509543675627530L;
+    @ColumnDefault("nextval('historique_statut_signalement_id_signalement_seq')")
     @Column(name = "id_signalement", nullable = false)
-    private UUID idSignalement;
+    private Integer idSignalement;
 
     @Column(name = "id_statut_signalement", nullable = false)
     private Integer idStatutSignalement;

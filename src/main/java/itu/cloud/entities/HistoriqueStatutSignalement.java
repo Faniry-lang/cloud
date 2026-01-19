@@ -17,6 +17,7 @@ public class HistoriqueStatutSignalement {
 
     @MapsId("idSignalement")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ColumnDefault("nextval('historique_statut_signalement_id_signalement_seq')")
     @JoinColumn(name = "id_signalement", nullable = false)
     private Signalement idSignalement;
 

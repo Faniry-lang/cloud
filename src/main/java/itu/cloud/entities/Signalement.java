@@ -7,7 +7,6 @@ import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.UUID;
 
 @Getter
 @Setter
@@ -15,8 +14,9 @@ import java.util.UUID;
 @Table(name = "signalements")
 public class Signalement {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    private UUID id;
+    private Integer id;
 
     @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;

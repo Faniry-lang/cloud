@@ -66,7 +66,7 @@ CREATE TABLE parametres (
 );
 
 CREATE TABLE signalements (
-                              id UUID PRIMARY KEY,
+                              id SERIAL PRIMARY KEY,
                               description TEXT,
                               surface_m2 NUMERIC(15,2),
                               budget NUMERIC(15,2),
@@ -117,7 +117,7 @@ CREATE TABLE fournisseurs_auth_utilisateur (
 
 
 CREATE TABLE historique_statut_signalement (
-                                               id_signalement UUID NOT NULL,
+                                               id_signalement SERIAL NOT NULL,
                                                id_statut_signalement INT NOT NULL,
                                                date_creation TIMESTAMP DEFAULT now(),
                                                date_mis_a_jour TIMESTAMP,
@@ -128,9 +128,9 @@ CREATE TABLE historique_statut_signalement (
 );
 
 CREATE TABLE journal (
-                             id UUID PRIMARY KEY,
-                             id_entite UUID,
-                             type_entite TEXT CHECK (type_entite IN ('utilisateur', 'signalement', 'entreprise')),
+                             id SERIAL PRIMARY KEY,
+                             id_entite INT,
+                             type_entite TEXT,
                              operation TEXT CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
                              donnees JSONB,
                              version INT,
