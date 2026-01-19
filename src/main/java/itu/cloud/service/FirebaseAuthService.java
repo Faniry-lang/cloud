@@ -102,7 +102,7 @@ public class FirebaseAuthService {
                 return responseBody.substring(start, end);
             }
         } catch (Exception ex) {
-            // Ignore parsing errors
+            System.out.println(ex.getMessage());
         }
         return "UNKNOWN_ERROR";
     }
