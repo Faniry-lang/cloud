@@ -9,12 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Optional;
 
-/**
- * Service d'authentification unifie.
- * Mode ONLINE (defaut): Firebase Auth + Firestore
- * Mode OFFLINE: PostgreSQL local
- * Les journaux sont toujours enregistres localement pour synchronisation ulterieure.
- */
 @Service
 public class AuthService {
 
@@ -39,13 +33,7 @@ public class AuthService {
         this.utilisateurRepository = utilisateurRepository;
     }
 
-    /**
-     * Inscription d'un utilisateur.
-     * ONLINE: Cree dans Firebase Auth + Firestore, journalise localement
-     * OFFLINE: Cree localement dans PostgreSQL, journalise pour sync ulterieure
-     */
     public RegisterResponse register(RegisterRequest request) {
-        // Validation
         if (request.getEmail() == null || request.getEmail().isBlank()) {
             return RegisterResponse.builder().success(false).error("Email requis").build();
         }
@@ -60,32 +48,23 @@ public class AuthService {
         }
     }
 
-    /**
-     * Inscription en mode ONLINE - Firebase par defaut
-     */
     private RegisterResponse registerOnline(RegisterRequest request) {
         try {
-            // 1. Creer l'utilisateur dans Firebase Auth
             LoginResponse firebaseAuth = firebaseAuthService.login(
                 new LoginRequest() {{ setEmail(request.getEmail()); setPassword(request.getPassword()); }}
             );
 
             String firebaseUid = null;
 
-            // Si l'utilisateur n'existe pas encore dans Firebase Auth, on doit le creer
-            // Pour l'instant, on utilise l'API REST signUp
             if (!firebaseAuth.isSuccess()) {
-                // Creer le compte Firebase
                 firebaseUid = createFirebaseUser(request.getEmail(), request.getPassword());
                 if (firebaseUid == null) {
-                    // Fallback vers local si creation Firebase echoue
                     return registerOffline(request);
                 }
             } else {
                 firebaseUid = firebaseAuth.getData().getLocalId();
             }
 
-            // 2. Sauvegarder dans Firestore
             Integer localId = generateLocalId();
             firestoreService.saveUtilisateur(
                 localId,
@@ -96,7 +75,6 @@ public class AuthService {
                 Instant.now()
             );
 
-            // 3. Journaliser localement (pour audit et backup)
             journalService.logCreationUtilisateur(localId, request.getEmail(), request.getNom());
 
             return RegisterResponse.builder()
@@ -111,22 +89,16 @@ public class AuthService {
                     .build();
 
         } catch (Exception e) {
-            // Fallback vers local en cas d'erreur
             System.err.println("Erreur mode online, fallback vers local: " + e.getMessage());
             return registerOffline(request);
         }
     }
 
-    /**
-     * Inscription en mode OFFLINE - PostgreSQL local
-     */
     private RegisterResponse registerOffline(RegisterRequest request) {
         return localAuthService.register(request);
     }
 
-    /**
-     * Cree un utilisateur dans Firebase Auth via l'API REST signUp
-     */
+
     private String createFirebaseUser(String email, String password) {
         try {
             return firebaseAuthService.createUser(email, password);
@@ -136,20 +108,11 @@ public class AuthService {
         }
     }
 
-    /**
-     * Genere un ID local unique
-     */
     private Integer generateLocalId() {
         return (int) (System.currentTimeMillis() % Integer.MAX_VALUE);
     }
 
-    /**
-     * Connexion d'un utilisateur.
-     * ONLINE: Firebase Auth
-     * OFFLINE: PostgreSQL local
-     */
     public AuthResponse login(LoginRequest request) {
-        // Validation
         if (request.getEmail() == null || request.getEmail().isBlank() ||
             request.getPassword() == null || request.getPassword().isBlank()) {
             return AuthResponse.builder()
@@ -165,15 +128,11 @@ public class AuthService {
         }
     }
 
-    /**
-     * Connexion en mode ONLINE - Firebase Auth
-     */
     private AuthResponse loginOnline(LoginRequest request) {
         try {
             LoginResponse firebaseResponse = firebaseAuthService.login(request);
 
             if (firebaseResponse.isSuccess()) {
-                // Journaliser la connexion reussie
                 journalService.logConnexionReussie(null, request.getEmail(), "ONLINE");
 
                 return AuthResponse.builder()
@@ -190,7 +149,6 @@ public class AuthService {
                         .build();
             }
 
-            // Echec Firebase - journaliser
             journalService.logConnexionEchouee(request.getEmail(), "FIREBASE_AUTH_FAILED");
 
             return AuthResponse.builder()
@@ -200,15 +158,11 @@ public class AuthService {
                     .build();
 
         } catch (Exception e) {
-            // Fallback vers local en cas d'erreur reseau
             System.err.println("Erreur mode online, fallback vers local: " + e.getMessage());
             return loginOffline(request);
         }
     }
 
-    /**
-     * Connexion en mode OFFLINE - PostgreSQL local
-     */
     private AuthResponse loginOffline(LoginRequest request) {
         AuthResponse response = localAuthService.login(request);
         if (response != null) {
@@ -217,14 +171,10 @@ public class AuthService {
         return response;
     }
 
-    /**
-     * Debloquer un utilisateur
-     */
     @Transactional
     public boolean debloquerUtilisateur(String email) {
         boolean result = localAuthService.debloquerUtilisateur(email);
 
-        // Si online, mettre a jour aussi dans Firestore
         if (connectivityService.isOnline() && result) {
             try {
                 Optional<Utilisateur> user = utilisateurRepository.findByEmail(email);
@@ -246,16 +196,11 @@ public class AuthService {
         return result;
     }
 
-    /**
-     * Retourne le mode actuel
-     */
+
     public String getAuthMode() {
         return connectivityService.getEffectiveStatus();
     }
 
-    /**
-     * Retourne le mode configure
-     */
     public String getConfiguredMode() {
         return connectivityService.getCurrentMode();
     }

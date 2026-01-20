@@ -223,6 +223,88 @@ public class UtilisateurService {
         }
     }
 
+    /**
+     * Recupere tous les utilisateurs actuellement bloques
+     */
+    public ApiResponse<List<UtilisateurDTO>> getAllBlocked() {
+        boolean isOnline = connectivityService.isOnline();
+        String mode = isOnline ? "ONLINE" : "OFFLINE";
+
+        try {
+            // On utilise toujours le local car le blocage est géré localement
+            List<UtilisateurDTO> utilisateurs = utilisateurRepository
+                    .findByBloqueJusquaAfterAndDateSuppressionIsNull(Instant.now())
+                    .stream()
+                    .map(this::mapToDTO)
+                    .collect(Collectors.toList());
+
+            return ApiResponse.success(utilisateurs, "Liste des utilisateurs bloques", mode);
+        } catch (Exception e) {
+            return ApiResponse.error("Erreur lors de la recuperation des utilisateurs bloques: " + e.getMessage(), mode);
+        }
+    }
+
+    /**
+     * Bloque un utilisateur pour une duree specifiee (en minutes)
+     */
+    @Transactional
+    public ApiResponse<UtilisateurDTO> blockUser(Integer id, Integer dureeMinutes) {
+        boolean isOnline = connectivityService.isOnline();
+        String mode = isOnline ? "ONLINE" : "OFFLINE";
+
+        try {
+            Optional<Utilisateur> optUtilisateur = utilisateurRepository.findById(id);
+            if (optUtilisateur.isEmpty() || optUtilisateur.get().getDateSuppression() != null) {
+                return ApiResponse.error("Utilisateur non trouve", mode);
+            }
+
+            Utilisateur utilisateur = optUtilisateur.get();
+
+            // Calculer la date de fin de blocage
+            Instant bloqueJusqua = Instant.now().plusSeconds(dureeMinutes * 60L);
+            utilisateur.setBloqueJusqua(bloqueJusqua);
+            utilisateur.setDateMisAJour(Instant.now());
+            utilisateur = utilisateurRepository.save(utilisateur);
+
+            // Journaliser le blocage
+            journalService.logBlocageCompte(utilisateur.getId(), utilisateur.getEmail(), bloqueJusqua);
+
+            return ApiResponse.success(mapToDTO(utilisateur),
+                    "Utilisateur bloque jusqu'a " + bloqueJusqua.toString(), mode);
+        } catch (Exception e) {
+            return ApiResponse.error("Erreur lors du blocage: " + e.getMessage(), mode);
+        }
+    }
+
+    /**
+     * Debloque un utilisateur
+     */
+    @Transactional
+    public ApiResponse<UtilisateurDTO> unblockUser(Integer id) {
+        boolean isOnline = connectivityService.isOnline();
+        String mode = isOnline ? "ONLINE" : "OFFLINE";
+
+        try {
+            Optional<Utilisateur> optUtilisateur = utilisateurRepository.findById(id);
+            if (optUtilisateur.isEmpty() || optUtilisateur.get().getDateSuppression() != null) {
+                return ApiResponse.error("Utilisateur non trouve", mode);
+            }
+
+            Utilisateur utilisateur = optUtilisateur.get();
+            utilisateur.setBloqueJusqua(null);
+            utilisateur.setTentativesEchouees(0);
+            utilisateur.setDateMisAJour(Instant.now());
+            utilisateur = utilisateurRepository.save(utilisateur);
+
+            // Journaliser le deblocage
+            journalService.logDeblocageCompte(utilisateur.getId(), utilisateur.getEmail());
+
+            return ApiResponse.success(mapToDTO(utilisateur), "Utilisateur debloque", mode);
+        } catch (Exception e) {
+            return ApiResponse.error("Erreur lors du deblocage: " + e.getMessage(), mode);
+        }
+    }
+
     // ==================== MAPPING ====================
 
     private UtilisateurDTO mapToDTO(Utilisateur entity) {
@@ -233,6 +315,8 @@ public class UtilisateurService {
                 .firebaseUid(entity.getFirebaseUid())
                 .actif(entity.getActif())
                 .version(entity.getVersion())
+                .tentativesEchouees(entity.getTentativesEchouees())
+                .bloqueJusqua(entity.getBloqueJusqua())
                 .dateCreation(entity.getDateCreation())
                 .dateMisAJour(entity.getDateMisAJour())
                 .build();

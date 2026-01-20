@@ -20,6 +20,8 @@ public class UtilisateurDTO {
     private Integer version;
     private String role;
     private String statut;
+    private Integer tentativesEchouees;
+    private Instant bloqueJusqua;
     private Instant dateCreation;
     private Instant dateMisAJour;
 }

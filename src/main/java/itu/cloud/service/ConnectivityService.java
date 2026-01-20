@@ -4,17 +4,13 @@ import itu.cloud.config.AuthProperties;
 import itu.cloud.config.AuthProperties.AppMode;
 import org.springframework.stereotype.Service;
 
-/**
- * Service de gestion de la connectivite.
- * Determine si l'application doit utiliser Firebase ou le stockage local.
- */
+
 @Service
 public class ConnectivityService {
 
     private final AuthProperties authProperties;
     private final FirestoreService firestoreService;
 
-    // Cache du statut de connexion (refresh periodique possible)
     private Boolean cachedOnlineStatus = null;
     private long lastCheck = 0;
     private static final long CACHE_DURATION_MS = 30000; // 30 secondes
@@ -24,9 +20,6 @@ public class ConnectivityService {
         this.firestoreService = firestoreService;
     }
 
-    /**
-     * Determine si on doit utiliser Firebase (true) ou le local (false)
-     */
     public boolean isOnline() {
         AppMode mode = authProperties.getMode();
 
