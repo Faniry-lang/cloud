@@ -33,18 +33,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Origines autorisees (ajustez selon vos besoins)
-        configuration.setAllowedOriginPatterns(List.of("*")); // Autorise tout en dev
-
-        // Ou pour restreindre a des origines specifiques :
+        // Mila amboarina aveo fa mbola tsy te hisahirana aloha
+        configuration.setAllowedOriginPatterns(List.of("*"));
         // configuration.setAllowedOrigins(List.of(
-        //     "http://localhost:3000",      // React dev
-        //     "http://localhost:4200",      // Angular dev
-        //     "http://localhost:5173",      // Vite dev
-        //     "http://localhost:8080",
-        //     "http://127.0.0.1:3000",
-        //     "http://127.0.0.1:4200",
-        //     "http://127.0.0.1:5173"
+        //     "http://localhost:3000",
         // ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
