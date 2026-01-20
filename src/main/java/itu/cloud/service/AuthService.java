@@ -16,7 +16,7 @@ import java.util.Optional;
  * Les journaux sont toujours enregistres localement pour synchronisation ulterieure.
  */
 @Service
-public class HybridAuthService {
+public class AuthService {
 
     private final LocalAuthService localAuthService;
     private final FirebaseAuthService firebaseAuthService;
@@ -25,12 +25,12 @@ public class HybridAuthService {
     private final ConnectivityService connectivityService;
     private final UtilisateurRepository utilisateurRepository;
 
-    public HybridAuthService(LocalAuthService localAuthService,
-                            FirebaseAuthService firebaseAuthService,
-                            FirestoreService firestoreService,
-                            JournalService journalService,
-                            ConnectivityService connectivityService,
-                            UtilisateurRepository utilisateurRepository) {
+    public AuthService(LocalAuthService localAuthService,
+                       FirebaseAuthService firebaseAuthService,
+                       FirestoreService firestoreService,
+                       JournalService journalService,
+                       ConnectivityService connectivityService,
+                       UtilisateurRepository utilisateurRepository) {
         this.localAuthService = localAuthService;
         this.firebaseAuthService = firebaseAuthService;
         this.firestoreService = firestoreService;

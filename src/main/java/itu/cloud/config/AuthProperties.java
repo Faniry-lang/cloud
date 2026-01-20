@@ -5,12 +5,6 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Configuration du mode de fonctionnement de l'application.
- * ONLINE: Firebase/Firestore par defaut
- * OFFLINE: PostgreSQL local par defaut
- * AUTO: Detecte automatiquement la connexion Firebase
- */
 @Getter
 @Setter
 @Configuration
@@ -18,9 +12,9 @@ import org.springframework.context.annotation.Configuration;
 public class AuthProperties {
 
     public enum AppMode {
-        ONLINE,   // Firebase par defaut
-        OFFLINE,  // Local par defaut
-        AUTO      // Detection automatique
+        ONLINE,
+        OFFLINE,
+        AUTO
     }
 
     private AppMode mode = AppMode.AUTO;

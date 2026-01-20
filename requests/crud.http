@@ -1,0 +1,152 @@
+### Liste toutes les entreprises
+### ONLINE: lit depuis Firestore
+### OFFLINE: lit depuis PostgreSQL local
+GET http://127.0.0.1:8080/api/entreprises
+Accept: application/json
+
+### Recupere une entreprise par ID
+GET http://127.0.0.1:8080/api/entreprises/1
+Accept: application/json
+
+### Cree une nouvelle entreprise
+POST http://127.0.0.1:8080/api/entreprises
+Content-Type: application/json
+
+{
+  "nom": "Entreprise Test"
+}
+
+### Met a jour une entreprise
+PUT http://127.0.0.1:8080/api/entreprises/1
+Content-Type: application/json
+
+{
+  "nom": "Entreprise Test Modifiee",
+  "version": 1
+}
+
+### Supprime une entreprise (soft delete)
+DELETE http://127.0.0.1:8080/api/entreprises/1
+
+### ===================== SIGNALEMENTS =====================
+
+### Liste tous les signalements
+GET http://127.0.0.1:8080/api/signalements
+Accept: application/json
+
+### Recupere un signalement par ID
+GET http://127.0.0.1:8080/api/signalements/1
+Accept: application/json
+
+### Liste les signalements par entreprise
+GET http://127.0.0.1:8080/api/signalements/entreprise/1
+Accept: application/json
+
+### Cree un nouveau signalement
+POST http://127.0.0.1:8080/api/signalements
+Content-Type: application/json
+
+{
+  "description": "Signalement de test",
+  "surfaceM2": 150.50,
+  "budget": 25000.00,
+  "idEntreprise": 1
+}
+
+### Met a jour un signalement
+PUT http://127.0.0.1:8080/api/signalements/1
+Content-Type: application/json
+
+{
+  "description": "Signalement modifie",
+  "surfaceM2": 200.00,
+  "budget": 30000.00
+}
+
+### Supprime un signalement (soft delete)
+DELETE http://127.0.0.1:8080/api/signalements/1
+
+### ===================== ROLES =====================
+
+### Liste tous les roles
+GET http://127.0.0.1:8080/api/roles
+Accept: application/json
+
+### Recupere un role par ID
+GET http://127.0.0.1:8080/api/roles/1
+Accept: application/json
+
+### Cree un nouveau role
+POST http://127.0.0.1:8080/api/roles
+Content-Type: application/json
+
+{
+  "nom": "NOUVEAU_ROLE"
+}
+
+### Met a jour un role
+PUT http://127.0.0.1:8080/api/roles/1
+Content-Type: application/json
+
+{
+  "nom": "ROLE_MODIFIE"
+}
+
+### Supprime un role (soft delete)
+DELETE http://127.0.0.1:8080/api/roles/1
+
+### ===================== STATUTS =====================
+
+### Liste tous les statuts
+GET http://127.0.0.1:8080/api/statuts
+Accept: application/json
+
+### Recupere un statut par ID
+GET http://127.0.0.1:8080/api/statuts/1
+Accept: application/json
+
+### Cree un nouveau statut
+POST http://127.0.0.1:8080/api/statuts
+Content-Type: application/json
+
+{
+  "description": "Nouveau Statut"
+}
+
+### Met a jour un statut
+PUT http://127.0.0.1:8080/api/statuts/1
+Content-Type: application/json
+
+{
+  "description": "Statut Modifie"
+}
+
+### Supprime un statut (soft delete)
+DELETE http://127.0.0.1:8080/api/statuts/1
+
+### ===================== UTILISATEURS =====================
+
+### Liste tous les utilisateurs
+GET http://127.0.0.1:8080/api/utilisateurs
+Accept: application/json
+
+### Recupere un utilisateur par ID
+GET http://127.0.0.1:8080/api/utilisateurs/1
+Accept: application/json
+
+### Recupere un utilisateur par email
+GET http://127.0.0.1:8080/api/utilisateurs/email/test@example.com
+Accept: application/json
+
+### Met a jour un utilisateur
+PUT http://127.0.0.1:8080/api/utilisateurs/1
+Content-Type: application/json
+
+{
+  "nom": "Nom Modifie",
+  "actif": true
+}
+
+### Desactive un utilisateur (soft delete)
+DELETE http://127.0.0.1:8080/api/utilisateurs/1
+

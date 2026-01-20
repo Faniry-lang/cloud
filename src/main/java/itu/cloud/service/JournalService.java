@@ -149,5 +149,145 @@ public class JournalService {
         donnees.put("timestamp", Instant.now().toString());
         enregistrer(userId, TypeEntite.statuts_utilisateur, Operation.INSERT, donnees, null);
     }
+
+    // ==================== ENTREPRISES ====================
+
+    /**
+     * Journalise la creation d'une entreprise
+     */
+    public void logCreationEntreprise(Integer entrepriseId, String nom) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "CREATE");
+        donnees.put("nom", nom);
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(entrepriseId, TypeEntite.entreprises, Operation.INSERT, donnees, 1);
+    }
+
+    /**
+     * Journalise la mise a jour d'une entreprise
+     */
+    public void logUpdateEntreprise(Integer entrepriseId, String nom, Integer version) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "UPDATE");
+        donnees.put("nom", nom);
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(entrepriseId, TypeEntite.entreprises, Operation.UPDATE, donnees, version);
+    }
+
+    /**
+     * Journalise la suppression d'une entreprise
+     */
+    public void logDeleteEntreprise(Integer entrepriseId, String nom) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "DELETE");
+        donnees.put("nom", nom);
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(entrepriseId, TypeEntite.entreprises, Operation.DELETE, donnees, null);
+    }
+
+    // ==================== SIGNALEMENTS ====================
+
+    /**
+     * Journalise la creation d'un signalement
+     */
+    public void logCreationSignalement(Integer signalementId, String description, Integer idEntreprise) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "CREATE");
+        donnees.put("description", description);
+        donnees.put("idEntreprise", idEntreprise);
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(signalementId, TypeEntite.signalements, Operation.INSERT, donnees, 1);
+    }
+
+    /**
+     * Journalise la mise a jour d'un signalement
+     */
+    public void logUpdateSignalement(Integer signalementId, String description, Integer version) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "UPDATE");
+        donnees.put("description", description);
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(signalementId, TypeEntite.signalements, Operation.UPDATE, donnees, version);
+    }
+
+    /**
+     * Journalise la suppression d'un signalement
+     */
+    public void logDeleteSignalement(Integer signalementId) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "DELETE");
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(signalementId, TypeEntite.signalements, Operation.DELETE, donnees, null);
+    }
+
+    // ==================== ROLES ====================
+
+    /**
+     * Journalise la creation d'un role
+     */
+    public void logCreationRole(Integer roleId, String nom) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "CREATE");
+        donnees.put("nom", nom);
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(roleId, TypeEntite.roles, Operation.INSERT, donnees, 1);
+    }
+
+    /**
+     * Journalise la mise a jour d'un role
+     */
+    public void logUpdateRole(Integer roleId, String nom) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "UPDATE");
+        donnees.put("nom", nom);
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(roleId, TypeEntite.roles, Operation.UPDATE, donnees, null);
+    }
+
+    /**
+     * Journalise la suppression d'un role
+     */
+    public void logDeleteRole(Integer roleId, String nom) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "DELETE");
+        donnees.put("nom", nom);
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(roleId, TypeEntite.roles, Operation.DELETE, donnees, null);
+    }
+
+    // ==================== STATUTS ====================
+
+    /**
+     * Journalise la creation d'un statut
+     */
+    public void logCreationStatut(Integer statutId, String description) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "CREATE");
+        donnees.put("description", description);
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(statutId, TypeEntite.statuts, Operation.INSERT, donnees, 1);
+    }
+
+    /**
+     * Journalise la mise a jour d'un statut
+     */
+    public void logUpdateStatut(Integer statutId, String description) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "UPDATE");
+        donnees.put("description", description);
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(statutId, TypeEntite.statuts, Operation.UPDATE, donnees, null);
+    }
+
+    /**
+     * Journalise la suppression d'un statut
+     */
+    public void logDeleteStatut(Integer statutId, String description) {
+        Map<String, Object> donnees = new HashMap<>();
+        donnees.put("action", "DELETE");
+        donnees.put("description", description);
+        donnees.put("timestamp", Instant.now().toString());
+        enregistrer(statutId, TypeEntite.statuts, Operation.DELETE, donnees, null);
+    }
 }
 

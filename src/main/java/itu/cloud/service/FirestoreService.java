@@ -5,6 +5,7 @@ import com.google.cloud.firestore.*;
 import com.google.firebase.cloud.FirestoreClient;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -21,6 +22,8 @@ public class FirestoreService {
     private static final String COLLECTION_ROLES = "roles";
     private static final String COLLECTION_STATUTS = "statuts";
     private static final String COLLECTION_PARAMETRES = "parametres";
+    private static final String COLLECTION_ENTREPRISES = "entreprises";
+    private static final String COLLECTION_SIGNALEMENTS = "signalements";
 
     /**
      * Obtient l'instance Firestore
@@ -190,6 +193,64 @@ public class FirestoreService {
         }
     }
 
+    /**
+     * Recupere tous les roles depuis Firestore
+     */
+    public List<Map<String, Object>> getAllRoles() {
+        try {
+            Firestore db = getFirestore();
+            QuerySnapshot querySnapshot = db.collection(COLLECTION_ROLES).get().get();
+
+            List<Map<String, Object>> roles = new ArrayList<>();
+            for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                if (doc.getData() != null) {
+                    roles.add(doc.getData());
+                }
+            }
+            return roles;
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la recuperation des roles: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Recupere un role par ID depuis Firestore
+     */
+    public Optional<Map<String, Object>> getRole(Integer id) {
+        try {
+            Firestore db = getFirestore();
+            DocumentSnapshot document = db.collection(COLLECTION_ROLES)
+                    .document(String.valueOf(id))
+                    .get()
+                    .get();
+
+            if (document.exists()) {
+                return Optional.ofNullable(document.getData());
+            }
+            return Optional.empty();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la lecture role depuis Firestore: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Supprime un role dans Firestore (soft delete via flag)
+     */
+    public void deleteRole(Integer id) {
+        try {
+            Firestore db = getFirestore();
+            DocumentReference docRef = db.collection(COLLECTION_ROLES).document(String.valueOf(id));
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("dateSuppression", Instant.now().toString());
+            updates.put("dateMiseAJour", Instant.now().toString());
+
+            docRef.update(updates).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la suppression role dans Firestore: " + e.getMessage(), e);
+        }
+    }
+
     // ==================== STATUTS ====================
 
     /**
@@ -209,6 +270,274 @@ public class FirestoreService {
             docRef.set(data, SetOptions.merge()).get();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Erreur lors de la sauvegarde statut dans Firestore: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Recupere tous les statuts depuis Firestore
+     */
+    public List<Map<String, Object>> getAllStatuts() {
+        try {
+            Firestore db = getFirestore();
+            QuerySnapshot querySnapshot = db.collection(COLLECTION_STATUTS).get().get();
+
+            List<Map<String, Object>> statuts = new ArrayList<>();
+            for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                if (doc.getData() != null) {
+                    statuts.add(doc.getData());
+                }
+            }
+            return statuts;
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la recuperation des statuts: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Recupere un statut par ID depuis Firestore
+     */
+    public Optional<Map<String, Object>> getStatut(Integer id) {
+        try {
+            Firestore db = getFirestore();
+            DocumentSnapshot document = db.collection(COLLECTION_STATUTS)
+                    .document(String.valueOf(id))
+                    .get()
+                    .get();
+
+            if (document.exists()) {
+                return Optional.ofNullable(document.getData());
+            }
+            return Optional.empty();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la lecture statut depuis Firestore: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Supprime un statut dans Firestore (soft delete via flag)
+     */
+    public void deleteStatut(Integer id) {
+        try {
+            Firestore db = getFirestore();
+            DocumentReference docRef = db.collection(COLLECTION_STATUTS).document(String.valueOf(id));
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("dateSuppression", Instant.now().toString());
+            updates.put("dateMiseAJour", Instant.now().toString());
+
+            docRef.update(updates).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la suppression statut dans Firestore: " + e.getMessage(), e);
+        }
+    }
+
+    // ==================== ENTREPRISES ====================
+
+    /**
+     * Sauvegarde une entreprise dans Firestore
+     */
+    public void saveEntreprise(Integer id, String nom, int version, Instant dateCreation) {
+        try {
+            Firestore db = getFirestore();
+            DocumentReference docRef = db.collection(COLLECTION_ENTREPRISES).document(String.valueOf(id));
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("id", id);
+            data.put("nom", nom);
+            data.put("version", version);
+            data.put("dateCreation", dateCreation != null ? dateCreation.toString() : null);
+            data.put("dateMiseAJour", Instant.now().toString());
+
+            docRef.set(data, SetOptions.merge()).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la sauvegarde entreprise dans Firestore: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Recupere toutes les entreprises depuis Firestore
+     */
+    public List<Map<String, Object>> getAllEntreprises() {
+        try {
+            Firestore db = getFirestore();
+            QuerySnapshot querySnapshot = db.collection(COLLECTION_ENTREPRISES).get().get();
+
+            List<Map<String, Object>> entreprises = new ArrayList<>();
+            for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                if (doc.getData() != null) {
+                    Map<String, Object> data = doc.getData();
+                    // Filtrer les entreprises non supprimees
+                    if (data.get("dateSuppression") == null) {
+                        entreprises.add(data);
+                    }
+                }
+            }
+            return entreprises;
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la recuperation des entreprises: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Recupere une entreprise par ID depuis Firestore
+     */
+    public Optional<Map<String, Object>> getEntreprise(Integer id) {
+        try {
+            Firestore db = getFirestore();
+            DocumentSnapshot document = db.collection(COLLECTION_ENTREPRISES)
+                    .document(String.valueOf(id))
+                    .get()
+                    .get();
+
+            if (document.exists()) {
+                Map<String, Object> data = document.getData();
+                // Verifier si non supprimee
+                if (data != null && data.get("dateSuppression") == null) {
+                    return Optional.of(data);
+                }
+            }
+            return Optional.empty();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la lecture entreprise depuis Firestore: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Supprime une entreprise dans Firestore (soft delete via flag)
+     */
+    public void deleteEntreprise(Integer id) {
+        try {
+            Firestore db = getFirestore();
+            DocumentReference docRef = db.collection(COLLECTION_ENTREPRISES).document(String.valueOf(id));
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("dateSuppression", Instant.now().toString());
+            updates.put("dateMiseAJour", Instant.now().toString());
+
+            docRef.update(updates).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la suppression entreprise dans Firestore: " + e.getMessage(), e);
+        }
+    }
+
+    // ==================== SIGNALEMENTS ====================
+
+    /**
+     * Sauvegarde un signalement dans Firestore
+     */
+    public void saveSignalement(Integer id, String description, BigDecimal surfaceM2,
+                                 BigDecimal budget, Integer idEntreprise, Integer version,
+                                 Instant dateCreation) {
+        try {
+            Firestore db = getFirestore();
+            DocumentReference docRef = db.collection(COLLECTION_SIGNALEMENTS).document(String.valueOf(id));
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("id", id);
+            data.put("description", description);
+            data.put("surfaceM2", surfaceM2 != null ? surfaceM2.toString() : null);
+            data.put("budget", budget != null ? budget.toString() : null);
+            data.put("idEntreprise", idEntreprise);
+            data.put("version", version);
+            data.put("dateCreation", dateCreation != null ? dateCreation.toString() : null);
+            data.put("dateMiseAJour", Instant.now().toString());
+
+            docRef.set(data, SetOptions.merge()).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la sauvegarde signalement dans Firestore: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Recupere tous les signalements depuis Firestore
+     */
+    public List<Map<String, Object>> getAllSignalements() {
+        try {
+            Firestore db = getFirestore();
+            QuerySnapshot querySnapshot = db.collection(COLLECTION_SIGNALEMENTS).get().get();
+
+            List<Map<String, Object>> signalements = new ArrayList<>();
+            for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                if (doc.getData() != null) {
+                    Map<String, Object> data = doc.getData();
+                    // Filtrer les signalements non supprimes
+                    if (data.get("dateSuppression") == null) {
+                        signalements.add(data);
+                    }
+                }
+            }
+            return signalements;
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la recuperation des signalements: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Recupere un signalement par ID depuis Firestore
+     */
+    public Optional<Map<String, Object>> getSignalement(Integer id) {
+        try {
+            Firestore db = getFirestore();
+            DocumentSnapshot document = db.collection(COLLECTION_SIGNALEMENTS)
+                    .document(String.valueOf(id))
+                    .get()
+                    .get();
+
+            if (document.exists()) {
+                Map<String, Object> data = document.getData();
+                // Verifier si non supprime
+                if (data != null && data.get("dateSuppression") == null) {
+                    return Optional.of(data);
+                }
+            }
+            return Optional.empty();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la lecture signalement depuis Firestore: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Recupere les signalements par entreprise depuis Firestore
+     */
+    public List<Map<String, Object>> getSignalementsByEntreprise(Integer idEntreprise) {
+        try {
+            Firestore db = getFirestore();
+            QuerySnapshot querySnapshot = db.collection(COLLECTION_SIGNALEMENTS)
+                    .whereEqualTo("idEntreprise", idEntreprise)
+                    .get()
+                    .get();
+
+            List<Map<String, Object>> signalements = new ArrayList<>();
+            for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                if (doc.getData() != null) {
+                    Map<String, Object> data = doc.getData();
+                    // Filtrer les signalements non supprimes
+                    if (data.get("dateSuppression") == null) {
+                        signalements.add(data);
+                    }
+                }
+            }
+            return signalements;
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la recuperation des signalements par entreprise: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Supprime un signalement dans Firestore (soft delete via flag)
+     */
+    public void deleteSignalement(Integer id) {
+        try {
+            Firestore db = getFirestore();
+            DocumentReference docRef = db.collection(COLLECTION_SIGNALEMENTS).document(String.valueOf(id));
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("dateSuppression", Instant.now().toString());
+            updates.put("dateMiseAJour", Instant.now().toString());
+
+            docRef.update(updates).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la suppression signalement dans Firestore: " + e.getMessage(), e);
         }
     }
 
@@ -270,4 +599,3 @@ public class FirestoreService {
         }
     }
 }
-

@@ -1,7 +1,7 @@
 package itu.cloud.controller;
 
 import itu.cloud.dto.*;
-import itu.cloud.service.HybridAuthService;
+import itu.cloud.service.AuthService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,20 +12,16 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class AuthController {
 
-    private final HybridAuthService hybridAuthService;
+    private final AuthService authService;
 
-    public AuthController(HybridAuthService hybridAuthService) {
-        this.hybridAuthService = hybridAuthService;
+    public AuthController(AuthService authService) {
+        this.authService = authService;
     }
 
-    /**
-     * Inscription d'un nouvel utilisateur
-     * POST /auth/register
-     */
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest request) {
         try {
-            RegisterResponse response = hybridAuthService.register(request);
+            RegisterResponse response = authService.register(request);
 
             if (response.isSuccess()) {
                 return ResponseEntity.ok(response);
@@ -42,14 +38,10 @@ public class AuthController {
         }
     }
 
-    /**
-     * Connexion utilisateur (hybride: local + Firebase)
-     * POST /auth/login
-     */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
         try {
-            AuthResponse response = hybridAuthService.login(request);
+            AuthResponse response = authService.login(request);
 
             if (response.isSuccess()) {
                 return ResponseEntity.ok(response);
@@ -66,10 +58,6 @@ public class AuthController {
         }
     }
 
-    /**
-     * Debloquer un utilisateur (endpoint admin)
-     * POST /auth/debloquer-utilisateur
-     */
     @PostMapping("/debloquer-utilisateur")
     public ResponseEntity<?> debloquerUtilisateur(@RequestBody Map<String, String> request) {
         String email = request.get("email");
@@ -80,7 +68,7 @@ public class AuthController {
             ));
         }
 
-        boolean success = hybridAuthService.debloquerUtilisateur(email);
+        boolean success = authService.debloquerUtilisateur(email);
         if (success) {
             return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -101,8 +89,8 @@ public class AuthController {
     @GetMapping("/mode")
     public ResponseEntity<?> getAuthMode() {
         return ResponseEntity.ok(Map.of(
-            "configuredMode", hybridAuthService.getConfiguredMode(),
-            "effectiveMode", hybridAuthService.getAuthMode()
+            "configuredMode", authService.getConfiguredMode(),
+            "effectiveMode", authService.getAuthMode()
         ));
     }
 
@@ -115,8 +103,8 @@ public class AuthController {
         return ResponseEntity.ok(Map.of(
             "status", "UP",
             "service", "Authentication API",
-            "configuredMode", hybridAuthService.getConfiguredMode(),
-            "effectiveMode", hybridAuthService.getAuthMode()
+            "configuredMode", authService.getConfiguredMode(),
+            "effectiveMode", authService.getAuthMode()
         ));
     }
 }
