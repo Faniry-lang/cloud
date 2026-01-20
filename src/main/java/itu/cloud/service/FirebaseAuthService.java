@@ -147,6 +147,7 @@ public class FirebaseAuthService {
     private String extractFirebaseError(HttpClientErrorException e) {
         try {
             String responseBody = e.getResponseBodyAsString();
+            System.out.println("Firebase error raw: "+responseBody);
             if (responseBody.contains("\"message\"")) {
                 int start = responseBody.indexOf("\"message\"") + 11;
                 int end = responseBody.indexOf("\"", start);
