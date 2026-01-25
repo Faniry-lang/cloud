@@ -8,6 +8,7 @@ import itu.cloud.repositories.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 
@@ -24,6 +25,8 @@ public class SyncService {
     private final StatutRepository statutRepository;
     private final ParametreRepository parametreRepository;
     private final JournalRepository journalRepository;
+    private final SignalementRepository signalementRepository;
+    private final EntrepriseRepository entrepriseRepository;
     private final FirestoreService firestoreService;
     private final FirebaseAuthService firebaseAuthService;
     private final JournalService journalService;
@@ -34,6 +37,8 @@ public class SyncService {
                        StatutRepository statutRepository,
                        ParametreRepository parametreRepository,
                        JournalRepository journalRepository,
+                       SignalementRepository signalementRepository,
+                       EntrepriseRepository entrepriseRepository,
                        FirestoreService firestoreService,
                        FirebaseAuthService firebaseAuthService,
                        JournalService journalService,
@@ -43,6 +48,8 @@ public class SyncService {
         this.statutRepository = statutRepository;
         this.parametreRepository = parametreRepository;
         this.journalRepository = journalRepository;
+        this.signalementRepository = signalementRepository;
+        this.entrepriseRepository = entrepriseRepository;
         this.firestoreService = firestoreService;
         this.firebaseAuthService = firebaseAuthService;
         this.journalService = journalService;
@@ -115,6 +122,12 @@ public class SyncService {
 
             // 5. Synchroniser les parametres
             syncParametresToFirestore(result);
+
+            // 6. Synchroniser les entreprises
+            syncEntreprisesToFirestore(result);
+
+            // 7. Synchroniser les signalements
+            syncSignalementsToFirestore(result);
 
             result.addDetail("Synchronisation terminee avec succes");
         } catch (Exception e) {
@@ -333,6 +346,76 @@ public class SyncService {
     }
 
     /**
+     * Synchronise les entreprises vers Firestore
+     */
+    private void syncEntreprisesToFirestore(SyncResult result) {
+        List<Entreprise> entreprises = entrepriseRepository.findAll();
+
+        for (Entreprise entreprise : entreprises) {
+            if (entreprise.getDateSuppression() != null) continue;
+
+            try {
+                firestoreService.saveEntreprise(
+                    entreprise.getId(),
+                    entreprise.getNom(),
+                    1, // version par defaut
+                    entreprise.getDateCreation()
+                );
+                result.incrementLocalToRemote();
+                result.addDetail("Entreprise #" + entreprise.getId() + " (" + entreprise.getNom() + ") synchronisee");
+            } catch (Exception e) {
+                result.addError("Erreur sync entreprise #" + entreprise.getId() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Synchronise les signalements vers Firestore
+     */
+    private void syncSignalementsToFirestore(SyncResult result) {
+        List<Signalement> signalements = signalementRepository.findAll();
+
+        for (Signalement signalement : signalements) {
+            if (signalement.getDateSuppression() != null) continue;
+
+            try {
+                // Verifier s'il existe deja dans Firestore
+                Optional<Map<String, Object>> remoteSignalement = firestoreService.getSignalement(signalement.getId());
+
+                if (remoteSignalement.isPresent()) {
+                    // Comparer les versions
+                    Object remoteVersionObj = remoteSignalement.get().get("version");
+                    Integer remoteVersion = remoteVersionObj != null ? ((Number) remoteVersionObj).intValue() : null;
+                    Integer localVersion = signalement.getVersion();
+
+                    if (remoteVersion != null && localVersion != null && remoteVersion > localVersion) {
+                        // Remote est plus recent - conflit
+                        result.incrementConflicts();
+                        result.addDetail("Conflit signalement #" + signalement.getId() + " - version remote plus recente");
+                        continue;
+                    }
+                }
+
+                // Envoyer vers Firestore
+                firestoreService.saveSignalement(
+                    signalement.getId(),
+                    signalement.getDescription(),
+                    signalement.getSurfaceM2(),
+                    signalement.getBudget(),
+                    signalement.getIdEntreprise() != null ? signalement.getIdEntreprise().getId() : null,
+                    signalement.getVersion(),
+                    signalement.getDateCreation()
+                );
+
+                result.incrementLocalToRemote();
+                result.addDetail("Signalement #" + signalement.getId() + " synchronise");
+            } catch (Exception e) {
+                result.addError("Erreur sync signalement #" + signalement.getId() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    /**
      * Synchronise depuis Firestore vers local (pull)
      */
     @Transactional
@@ -345,51 +428,14 @@ public class SyncService {
         }
 
         try {
-            // Recuperer les utilisateurs depuis Firestore
-            List<Map<String, Object>> remoteUsers = firestoreService.getAllUtilisateurs();
+            // 1. Importer les utilisateurs
+            pullUtilisateursFromFirestore(result);
 
-            for (Map<String, Object> remoteUser : remoteUsers) {
-                try {
-                    Integer remoteId = ((Number) remoteUser.get("id")).intValue();
-                    String email = (String) remoteUser.get("email");
-                    Integer remoteVersion = remoteUser.get("version") != null ?
-                        ((Number) remoteUser.get("version")).intValue() : 1;
+            // 2. Importer les entreprises
+            pullEntreprisesFromFirestore(result);
 
-                    Optional<Utilisateur> localUser = utilisateurRepository.findById(remoteId);
-
-                    if (localUser.isEmpty()) {
-                        // Creer localement
-                        Utilisateur newUser = new Utilisateur();
-                        newUser.setEmail(email);
-                        newUser.setNom((String) remoteUser.get("nom"));
-                        newUser.setFirebaseUid((String) remoteUser.get("firebaseUid"));
-                        newUser.setVersion(remoteVersion);
-                        newUser.setActif(true);
-                        newUser.setTentativesEchouees(0);
-                        newUser.setDateCreation(Instant.now());
-
-                        utilisateurRepository.save(newUser);
-                        result.incrementRemoteToLocal();
-                        result.addDetail("Utilisateur " + email + " importe depuis Firestore");
-                    } else {
-                        // Verifier la version
-                        Utilisateur local = localUser.get();
-                        if (remoteVersion > local.getVersion()) {
-                            // Mettre a jour depuis remote
-                            local.setNom((String) remoteUser.get("nom"));
-                            local.setFirebaseUid((String) remoteUser.get("firebaseUid"));
-                            local.setVersion(remoteVersion);
-                            local.setDateMisAJour(Instant.now());
-
-                            utilisateurRepository.save(local);
-                            result.incrementRemoteToLocal();
-                            result.addDetail("Utilisateur " + email + " mis a jour depuis Firestore");
-                        }
-                    }
-                } catch (Exception e) {
-                    result.addError("Erreur import utilisateur: " + e.getMessage());
-                }
-            }
+            // 3. Importer les signalements
+            pullSignalementsFromFirestore(result);
 
             result.addDetail("Import depuis Firestore termine");
         } catch (Exception e) {
@@ -397,6 +443,167 @@ public class SyncService {
         }
 
         return result;
+    }
+
+    /**
+     * Importe les utilisateurs depuis Firestore
+     */
+    private void pullUtilisateursFromFirestore(SyncResult result) {
+        List<Map<String, Object>> remoteUsers = firestoreService.getAllUtilisateurs();
+
+        for (Map<String, Object> remoteUser : remoteUsers) {
+            try {
+                Integer remoteId = ((Number) remoteUser.get("id")).intValue();
+                String email = (String) remoteUser.get("email");
+                Integer remoteVersion = remoteUser.get("version") != null ?
+                    ((Number) remoteUser.get("version")).intValue() : 1;
+
+                Optional<Utilisateur> localUser = utilisateurRepository.findById(remoteId);
+
+                if (localUser.isEmpty()) {
+                    // Creer localement
+                    Utilisateur newUser = new Utilisateur();
+                    newUser.setEmail(email);
+                    newUser.setNom((String) remoteUser.get("nom"));
+                    newUser.setFirebaseUid((String) remoteUser.get("firebaseUid"));
+                    newUser.setVersion(remoteVersion);
+                    newUser.setActif(true);
+                    newUser.setTentativesEchouees(0);
+                    newUser.setDateCreation(Instant.now());
+
+                    utilisateurRepository.save(newUser);
+                    result.incrementRemoteToLocal();
+                    result.addDetail("Utilisateur " + email + " importe depuis Firestore");
+                } else {
+                    // Verifier la version
+                    Utilisateur local = localUser.get();
+                    if (remoteVersion > local.getVersion()) {
+                        // Mettre a jour depuis remote
+                        local.setNom((String) remoteUser.get("nom"));
+                        local.setFirebaseUid((String) remoteUser.get("firebaseUid"));
+                        local.setVersion(remoteVersion);
+                        local.setDateMisAJour(Instant.now());
+
+                        utilisateurRepository.save(local);
+                        result.incrementRemoteToLocal();
+                        result.addDetail("Utilisateur " + email + " mis a jour depuis Firestore");
+                    }
+                }
+            } catch (Exception e) {
+                result.addError("Erreur import utilisateur: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Importe les entreprises depuis Firestore
+     */
+    private void pullEntreprisesFromFirestore(SyncResult result) {
+        List<Map<String, Object>> remoteEntreprises = firestoreService.getAllEntreprises();
+
+        for (Map<String, Object> remoteEntreprise : remoteEntreprises) {
+            try {
+                Integer remoteId = ((Number) remoteEntreprise.get("id")).intValue();
+                String nom = (String) remoteEntreprise.get("nom");
+
+                Optional<Entreprise> localEntreprise = entrepriseRepository.findById(remoteId);
+
+                if (localEntreprise.isEmpty()) {
+                    // Creer localement
+                    Entreprise newEntreprise = new Entreprise();
+                    newEntreprise.setNom(nom);
+                    newEntreprise.setDateCreation(Instant.now());
+
+                    entrepriseRepository.save(newEntreprise);
+                    result.incrementRemoteToLocal();
+                    result.addDetail("Entreprise " + nom + " importee depuis Firestore");
+                } else {
+                    // Mettre a jour si necessaire
+                    Entreprise local = localEntreprise.get();
+                    if (!nom.equals(local.getNom())) {
+                        local.setNom(nom);
+                        local.setDateMisAJour(Instant.now());
+                        entrepriseRepository.save(local);
+                        result.incrementRemoteToLocal();
+                        result.addDetail("Entreprise " + nom + " mise a jour depuis Firestore");
+                    }
+                }
+            } catch (Exception e) {
+                result.addError("Erreur import entreprise: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Importe les signalements depuis Firestore
+     */
+    private void pullSignalementsFromFirestore(SyncResult result) {
+        List<Map<String, Object>> remoteSignalements = firestoreService.getAllSignalements();
+
+        for (Map<String, Object> remoteSignalement : remoteSignalements) {
+            try {
+                Integer remoteId = ((Number) remoteSignalement.get("id")).intValue();
+                Integer remoteVersion = remoteSignalement.get("version") != null ?
+                    ((Number) remoteSignalement.get("version")).intValue() : 1;
+
+                Optional<Signalement> localSignalement = signalementRepository.findById(remoteId);
+
+                if (localSignalement.isEmpty()) {
+                    // Creer localement
+                    Signalement newSignalement = new Signalement();
+                    newSignalement.setDescription((String) remoteSignalement.get("description"));
+
+                    // Convertir surfaceM2
+                    if (remoteSignalement.get("surfaceM2") != null) {
+                        newSignalement.setSurfaceM2(new BigDecimal(remoteSignalement.get("surfaceM2").toString()));
+                    }
+
+                    // Convertir budget
+                    if (remoteSignalement.get("budget") != null) {
+                        newSignalement.setBudget(new BigDecimal(remoteSignalement.get("budget").toString()));
+                    }
+
+                    // Lier l'entreprise
+                    if (remoteSignalement.get("idEntreprise") != null) {
+                        Integer idEntreprise = ((Number) remoteSignalement.get("idEntreprise")).intValue();
+                        Optional<Entreprise> entreprise = entrepriseRepository.findById(idEntreprise);
+                        if (entreprise.isPresent()) {
+                            newSignalement.setIdEntreprise(entreprise.get());
+                        }
+                    }
+
+                    newSignalement.setVersion(remoteVersion);
+                    newSignalement.setDateCreation(Instant.now());
+
+                    signalementRepository.save(newSignalement);
+                    result.incrementRemoteToLocal();
+                    result.addDetail("Signalement #" + remoteId + " importe depuis Firestore");
+                } else {
+                    // Verifier la version
+                    Signalement local = localSignalement.get();
+                    if (remoteVersion > local.getVersion()) {
+                        // Mettre a jour depuis remote
+                        local.setDescription((String) remoteSignalement.get("description"));
+
+                        if (remoteSignalement.get("surfaceM2") != null) {
+                            local.setSurfaceM2(new BigDecimal(remoteSignalement.get("surfaceM2").toString()));
+                        }
+                        if (remoteSignalement.get("budget") != null) {
+                            local.setBudget(new BigDecimal(remoteSignalement.get("budget").toString()));
+                        }
+
+                        local.setVersion(remoteVersion);
+                        local.setDateMisAJour(Instant.now());
+
+                        signalementRepository.save(local);
+                        result.incrementRemoteToLocal();
+                        result.addDetail("Signalement #" + remoteId + " mis a jour depuis Firestore");
+                    }
+                }
+            } catch (Exception e) {
+                result.addError("Erreur import signalement: " + e.getMessage());
+            }
+        }
     }
 
     /**

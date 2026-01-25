@@ -34,26 +34,18 @@ public class ConnectivityService {
         }
     }
 
-    /**
-     * Force le rafraichissement du cache de connectivite
-     */
     public void refreshConnectivity() {
         cachedOnlineStatus = null;
         lastCheck = 0;
     }
 
-    /**
-     * Verifie la connectivite Firebase avec cache
-     */
     private boolean checkFirebaseConnectivity() {
         long now = System.currentTimeMillis();
 
-        // Utiliser le cache si valide
         if (cachedOnlineStatus != null && (now - lastCheck) < CACHE_DURATION_MS) {
             return cachedOnlineStatus;
         }
 
-        // Verifier la connectivite
         try {
             cachedOnlineStatus = firestoreService.isAvailable();
         } catch (Exception e) {
@@ -64,16 +56,11 @@ public class ConnectivityService {
         return cachedOnlineStatus;
     }
 
-    /**
-     * Retourne le mode actuel configure
-     */
     public String getCurrentMode() {
         return authProperties.getMode().name();
     }
 
-    /**
-     * Retourne le statut effectif (online/offline)
-     */
+
     public String getEffectiveStatus() {
         return isOnline() ? "ONLINE" : "OFFLINE";
     }

@@ -29,10 +29,6 @@ public class FirebaseAuthService {
         this.restTemplate = new RestTemplate();
     }
 
-    /**
-     * Cree un nouvel utilisateur dans Firebase Auth
-     * @return le firebase_uid de l'utilisateur cree, ou null en cas d'erreur
-     */
     @SuppressWarnings("unchecked")
     public String createUser(String email, String password) {
         try {
@@ -61,7 +57,6 @@ public class FirebaseAuthService {
             String error = extractFirebaseError(e);
             System.err.println("Erreur creation Firebase: " + error);
 
-            // Si l'email existe deja, tenter de recuperer le localId via login
             if (error.contains("EMAIL_EXISTS")) {
                 LoginRequest loginReq = new LoginRequest();
                 loginReq.setEmail(email);

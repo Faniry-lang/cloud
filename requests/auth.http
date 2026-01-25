@@ -14,9 +14,10 @@ POST http://127.0.0.1:8080/auth/register
 Content-Type: application/json
 
 {
-  "email": "monbebe@gmail.com",
+  "email": "body@gmail.com",
   "password": "password123",
-  "nom": "Nouveau bebe"
+  "nom": "Nouveau bebe",
+  "role": "manager"
 }
 
 ### Login - Connexion utilisateur
@@ -53,7 +54,7 @@ POST http://127.0.0.1:8080/auth/debloquer-utilisateur
 Content-Type: application/json
 
 {
-  "email": "test@example.com"
+  "email": "test@gmail.com"
 }
 
 ### ===================== SYNCHRONISATION =====================

@@ -97,8 +97,8 @@ public class LocalAuthService {
 
         utilisateur = utilisateurRepository.save(utilisateur);
 
-        // Attribuer le role par defaut
-        String roleNom = assignerRoleParDefaut(utilisateur);
+        // Attribuer le role (celui de la requete ou VISITOR par defaut)
+        String roleNom = assignerRole(utilisateur, request.getRole());
 
         // Attribuer le statut par defaut
         String statutDescription = assignerStatutParDefaut(utilisateur);
@@ -275,17 +275,28 @@ public class LocalAuthService {
     }
 
     /**
-     * Attribue le rôle par défaut à l'utilisateur
+     * Attribue un rôle à l'utilisateur (VISITOR par défaut si non spécifié)
      */
-    private String assignerRoleParDefaut(Utilisateur utilisateur) {
-        String defaultRoleNom = parametreService.getDefaultRole();
-        Optional<Role> optRole = roleRepository.findByNom(defaultRoleNom);
+    private String assignerRole(Utilisateur utilisateur, String roleRequest) {
+        // Normaliser le nom du rôle (uppercase)
+        String roleNom;
+        if (roleRequest != null && !roleRequest.isBlank()) {
+            roleNom = roleRequest.toUpperCase();
+            // Vérifier que c'est un rôle valide (VISITOR ou MANAGER)
+            if (!roleNom.equals("VISITOR") && !roleNom.equals("MANAGER")) {
+                roleNom = "VISITOR"; // Fallback si rôle invalide
+            }
+        } else {
+            roleNom = parametreService.getDefaultRole(); // VISITOR par défaut
+        }
+
+        Optional<Role> optRole = roleRepository.findByNom(roleNom);
 
         Role role;
         if (optRole.isEmpty()) {
             // Créer le rôle s'il n'existe pas
             role = new Role();
-            role.setNom(defaultRoleNom);
+            role.setNom(roleNom);
             role.setDateCreation(Instant.now());
             role = roleRepository.save(role);
         } else {

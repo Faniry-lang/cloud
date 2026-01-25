@@ -107,5 +107,22 @@ public class AuthController {
             "effectiveMode", authService.getAuthMode()
         ));
     }
+
+    /**
+     * Vérifie si un utilisateur est bloqué
+     * GET /auth/statut-blocage/{email}
+     */
+    @GetMapping("/statut-blocage/{email}")
+    public ResponseEntity<?> getStatutBlocage(@PathVariable String email) {
+        try {
+            Map<String, Object> statut = authService.getStatutBlocage(email);
+            return ResponseEntity.ok(statut);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "error", e.getMessage()
+            ));
+        }
+    }
 }
 

@@ -13,10 +13,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * Service hybride pour les Entreprises.
- * Utilise Firebase par defaut, bascule en local si offline.
- */
 @Service
 public class EntrepriseService {
 
@@ -35,9 +31,6 @@ public class EntrepriseService {
         this.journalService = journalService;
     }
 
-    /**
-     * Recupere toutes les entreprises
-     */
     public ApiResponse<List<EntrepriseDTO>> getAll() {
         boolean isOnline = connectivityService.isOnline();
         String mode = isOnline ? "ONLINE" : "OFFLINE";
@@ -46,13 +39,13 @@ public class EntrepriseService {
             List<EntrepriseDTO> entreprises;
 
             if (isOnline) {
-                // Mode online: lire depuis Firestore
+
                 List<Map<String, Object>> firestoreData = firestoreService.getAllEntreprises();
                 entreprises = firestoreData.stream()
                         .map(this::mapFromFirestore)
                         .collect(Collectors.toList());
             } else {
-                // Mode offline: lire depuis PostgreSQL
+
                 entreprises = entrepriseRepository.findAll().stream()
                         .filter(e -> e.getDateSuppression() == null)
                         .map(this::mapToDTO)
@@ -61,7 +54,6 @@ public class EntrepriseService {
 
             return ApiResponse.success(entreprises, mode);
         } catch (Exception e) {
-            // Si Firestore echoue, basculer en local
             if (isOnline) {
                 List<EntrepriseDTO> entreprises = entrepriseRepository.findAll().stream()
                         .filter(ent -> ent.getDateSuppression() == null)
@@ -73,9 +65,6 @@ public class EntrepriseService {
         }
     }
 
-    /**
-     * Recupere une entreprise par ID
-     */
     public ApiResponse<EntrepriseDTO> getById(Integer id) {
         boolean isOnline = connectivityService.isOnline();
         String mode = isOnline ? "ONLINE" : "OFFLINE";
@@ -101,7 +90,6 @@ public class EntrepriseService {
                 return ApiResponse.error("Entreprise non trouvee", mode);
             }
         } catch (Exception e) {
-            // Fallback local si Firebase echoue
             if (isOnline) {
                 Optional<Entreprise> localData = entrepriseRepository.findById(id);
                 if (localData.isPresent() && localData.get().getDateSuppression() == null) {
@@ -112,9 +100,6 @@ public class EntrepriseService {
         }
     }
 
-    /**
-     * Cree une nouvelle entreprise
-     */
     @Transactional
     public ApiResponse<EntrepriseDTO> create(EntrepriseDTO dto) {
         boolean isOnline = connectivityService.isOnline();
@@ -126,34 +111,27 @@ public class EntrepriseService {
             }
 
             if (isOnline) {
-                // Mode online: sauvegarder d'abord dans Firebase, puis en local
-                // D'abord en local pour obtenir l'ID
                 Entreprise entreprise = new Entreprise();
                 entreprise.setNom(dto.getNom());
                 entreprise.setDateCreation(Instant.now());
                 entreprise = entrepriseRepository.save(entreprise);
 
-                // Puis dans Firestore
                 firestoreService.saveEntreprise(entreprise.getId(), entreprise.getNom(), 1, entreprise.getDateCreation());
 
-                // Journaliser
                 journalService.logCreationEntreprise(entreprise.getId(), entreprise.getNom());
 
                 return ApiResponse.success(mapToDTO(entreprise), "Entreprise creee", mode);
             } else {
-                // Mode offline: sauvegarder uniquement en local
+
                 Entreprise entreprise = new Entreprise();
                 entreprise.setNom(dto.getNom());
                 entreprise.setDateCreation(Instant.now());
                 entreprise = entrepriseRepository.save(entreprise);
-
-                // Journaliser (meme en offline pour la synchro future)
                 journalService.logCreationEntreprise(entreprise.getId(), entreprise.getNom());
 
                 return ApiResponse.success(mapToDTO(entreprise), "Entreprise creee (sera synchronisee plus tard)", mode);
             }
         } catch (Exception e) {
-            // Si Firebase echoue, sauvegarder en local
             if (isOnline) {
                 try {
                     Entreprise entreprise = new Entreprise();
@@ -170,9 +148,6 @@ public class EntrepriseService {
         }
     }
 
-    /**
-     * Met a jour une entreprise
-     */
     @Transactional
     public ApiResponse<EntrepriseDTO> update(Integer id, EntrepriseDTO dto) {
         boolean isOnline = connectivityService.isOnline();
@@ -206,9 +181,6 @@ public class EntrepriseService {
         }
     }
 
-    /**
-     * Supprime une entreprise (soft delete)
-     */
     @Transactional
     public ApiResponse<Void> delete(Integer id) {
         boolean isOnline = connectivityService.isOnline();
@@ -237,7 +209,6 @@ public class EntrepriseService {
         }
     }
 
-    // ==================== MAPPING ====================
 
     private EntrepriseDTO mapToDTO(Entreprise entity) {
         return EntrepriseDTO.builder()

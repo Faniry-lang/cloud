@@ -8,10 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Controleur CRUD pour les Entreprises.
- * Workflow hybride: Firebase par defaut, bascule en local si offline.
- */
+
 @RestController
 @RequestMapping("/api/entreprises")
 @CrossOrigin(origins = "*")
@@ -23,20 +20,12 @@ public class EntrepriseController {
         this.entrepriseService = entrepriseService;
     }
 
-    /**
-     * Liste toutes les entreprises
-     * GET /api/entreprises
-     */
     @GetMapping
     public ResponseEntity<ApiResponse<List<EntrepriseDTO>>> getAll() {
         ApiResponse<List<EntrepriseDTO>> response = entrepriseService.getAll();
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Recupere une entreprise par ID
-     * GET /api/entreprises/{id}
-     */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<EntrepriseDTO>> getById(@PathVariable Integer id) {
         ApiResponse<EntrepriseDTO> response = entrepriseService.getById(id);
@@ -46,10 +35,6 @@ public class EntrepriseController {
         return ResponseEntity.status(404).body(response);
     }
 
-    /**
-     * Cree une nouvelle entreprise
-     * POST /api/entreprises
-     */
     @PostMapping
     public ResponseEntity<ApiResponse<EntrepriseDTO>> create(@RequestBody EntrepriseDTO dto) {
         ApiResponse<EntrepriseDTO> response = entrepriseService.create(dto);
@@ -59,10 +44,6 @@ public class EntrepriseController {
         return ResponseEntity.badRequest().body(response);
     }
 
-    /**
-     * Met a jour une entreprise
-     * PUT /api/entreprises/{id}
-     */
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<EntrepriseDTO>> update(@PathVariable Integer id, @RequestBody EntrepriseDTO dto) {
         ApiResponse<EntrepriseDTO> response = entrepriseService.update(id, dto);
@@ -72,10 +53,6 @@ public class EntrepriseController {
         return ResponseEntity.badRequest().body(response);
     }
 
-    /**
-     * Supprime une entreprise (soft delete)
-     * DELETE /api/entreprises/{id}
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Integer id) {
         ApiResponse<Void> response = entrepriseService.delete(id);

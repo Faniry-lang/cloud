@@ -6,9 +6,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-/**
- * Controleur pour la synchronisation des donnees entre PostgreSQL local et Firestore.
- */
 @RestController
 @RequestMapping("/sync")
 @CrossOrigin(origins = "*")
@@ -20,10 +17,6 @@ public class SyncController {
         this.syncService = syncService;
     }
 
-    /**
-     * Synchronise toutes les donnees (bidirectionnel)
-     * POST /sync/all
-     */
     @PostMapping("/all")
     public ResponseEntity<Map<String, Object>> synchroniserTout() {
         try {
@@ -37,10 +30,6 @@ public class SyncController {
         }
     }
 
-    /**
-     * Synchronise uniquement les utilisateurs vers Firestore
-     * POST /sync/utilisateurs
-     */
     @PostMapping("/utilisateurs")
     public ResponseEntity<Map<String, Object>> synchroniserUtilisateurs() {
         try {
@@ -54,10 +43,6 @@ public class SyncController {
         }
     }
 
-    /**
-     * Importe les donnees depuis Firestore vers local (pull)
-     * POST /sync/pull
-     */
     @PostMapping("/pull")
     public ResponseEntity<Map<String, Object>> importerDepuisFirestore() {
         try {
@@ -71,10 +56,6 @@ public class SyncController {
         }
     }
 
-    /**
-     * Envoie les donnees locales vers Firestore (push)
-     * POST /sync/push
-     */
     @PostMapping("/push")
     public ResponseEntity<Map<String, Object>> envoyerVersFirestore() {
         try {
@@ -88,10 +69,6 @@ public class SyncController {
         }
     }
 
-    /**
-     * Recupere le statut de synchronisation
-     * GET /sync/status
-     */
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> getStatutSynchronisation() {
         try {

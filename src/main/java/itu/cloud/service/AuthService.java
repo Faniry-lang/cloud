@@ -2,11 +2,14 @@ package itu.cloud.service;
 
 import itu.cloud.dto.*;
 import itu.cloud.entities.Utilisateur;
+import itu.cloud.repositories.RolesUtilisateurRepository;
 import itu.cloud.repositories.UtilisateurRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -18,19 +21,22 @@ public class AuthService {
     private final JournalService journalService;
     private final ConnectivityService connectivityService;
     private final UtilisateurRepository utilisateurRepository;
+    private final RolesUtilisateurRepository rolesUtilisateurRepository;
 
     public AuthService(LocalAuthService localAuthService,
                        FirebaseAuthService firebaseAuthService,
                        FirestoreService firestoreService,
                        JournalService journalService,
                        ConnectivityService connectivityService,
-                       UtilisateurRepository utilisateurRepository) {
+                       UtilisateurRepository utilisateurRepository,
+                       RolesUtilisateurRepository rolesUtilisateurRepository) {
         this.localAuthService = localAuthService;
         this.firebaseAuthService = firebaseAuthService;
         this.firestoreService = firestoreService;
         this.journalService = journalService;
         this.connectivityService = connectivityService;
         this.utilisateurRepository = utilisateurRepository;
+        this.rolesUtilisateurRepository = rolesUtilisateurRepository;
     }
 
     public RegisterResponse register(RegisterRequest request) {
@@ -65,12 +71,22 @@ public class AuthService {
                 firebaseUid = firebaseAuth.getData().getLocalId();
             }
 
+            // Normaliser le rôle (VISITOR par défaut)
+            String roleNom = "VISITOR";
+            if (request.getRole() != null && !request.getRole().isBlank()) {
+                String roleUpper = request.getRole().toUpperCase();
+                if (roleUpper.equals("VISITOR") || roleUpper.equals("MANAGER")) {
+                    roleNom = roleUpper;
+                }
+            }
+
             Integer localId = generateLocalId();
-            firestoreService.saveUtilisateur(
+            firestoreService.saveUtilisateurWithRole(
                 localId,
                 request.getEmail(),
                 request.getNom(),
                 firebaseUid,
+                roleNom,
                 1,
                 Instant.now()
             );
@@ -83,7 +99,7 @@ public class AuthService {
                             .id(localId)
                             .email(request.getEmail())
                             .nom(request.getNom())
-                            .role("USER")
+                            .role(roleNom)
                             .statut("ACTIF")
                             .build())
                     .build();
@@ -133,14 +149,27 @@ public class AuthService {
             LoginResponse firebaseResponse = firebaseAuthService.login(request);
 
             if (firebaseResponse.isSuccess()) {
-                journalService.logConnexionReussie(null, request.getEmail(), "ONLINE");
+                // Récupérer l'utilisateur local pour obtenir son rôle
+                String role = "VISITOR"; // Rôle par défaut
+                Optional<Utilisateur> optUser = utilisateurRepository.findByEmail(request.getEmail());
+                if (optUser.isPresent()) {
+                    role = getRoleUtilisateur(optUser.get());
+                }
+
+                journalService.logConnexionReussie(
+                    optUser.map(Utilisateur::getId).orElse(null),
+                    request.getEmail(),
+                    "ONLINE"
+                );
 
                 return AuthResponse.builder()
                         .success(true)
                         .authMode("ONLINE")
                         .data(AuthResponse.AuthData.builder()
+                                .userId(optUser.map(Utilisateur::getId).orElse(null))
                                 .email(firebaseResponse.getData().getEmail())
                                 .nom(firebaseResponse.getData().getDisplayName())
+                                .role(role)
                                 .firebaseUid(firebaseResponse.getData().getLocalId())
                                 .idToken(firebaseResponse.getData().getIdToken())
                                 .refreshToken(firebaseResponse.getData().getRefreshToken())
@@ -203,5 +232,39 @@ public class AuthService {
 
     public String getConfiguredMode() {
         return connectivityService.getCurrentMode();
+    }
+
+    private String getRoleUtilisateur(Utilisateur utilisateur) {
+        return rolesUtilisateurRepository.findByIdUtilisateurAndDateSuppressionIsNull(utilisateur)
+                .stream()
+                .map(ru -> ru.getIdRole().getNom())
+                .findFirst()
+                .orElse("VISITOR");
+    }
+
+
+    public Map<String, Object> getStatutBlocage(String email) {
+        Optional<Utilisateur> optUser = utilisateurRepository.findByEmail(email);
+
+        if (optUser.isEmpty()) {
+            throw new RuntimeException("Utilisateur non trouvé");
+        }
+
+        Utilisateur user = optUser.get();
+        Map<String, Object> statut = new HashMap<>();
+        statut.put("success", true);
+        statut.put("email", email);
+        statut.put("tentativesEchouees", user.getTentativesEchouees() != null ? user.getTentativesEchouees() : 0);
+
+        boolean estBloque = user.getBloqueJusqua() != null && Instant.now().isBefore(user.getBloqueJusqua());
+        statut.put("estBloque", estBloque);
+
+        if (estBloque) {
+            statut.put("bloqueJusqua", user.getBloqueJusqua().toString());
+        } else {
+            statut.put("bloqueJusqua", null);
+        }
+
+        return statut;
     }
 }

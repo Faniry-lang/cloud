@@ -10,10 +10,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Service de journalisation pour tracer toutes les operations.
- * Essentiel pour la synchronisation future avec Firebase.
- */
 @Service
 public class JournalService {
 
@@ -41,9 +37,6 @@ public class JournalService {
         entreprises
     }
 
-    /**
-     * Enregistre une entree dans le journal
-     */
     public void enregistrer(Integer idEntite, TypeEntite typeEntite, Operation operation,
                                 Map<String, Object> donnees, Integer version) {
         Journal journal = new Journal();
@@ -58,9 +51,6 @@ public class JournalService {
         journalRepository.save(journal);
     }
 
-    /**
-     * Convertit une Map en JSON String
-     */
     private String toJson(Map<String, Object> data) {
         try {
             return objectMapper.writeValueAsString(data);
@@ -69,9 +59,6 @@ public class JournalService {
         }
     }
 
-    /**
-     * Journalise une creation d'utilisateur
-     */
     public void logCreationUtilisateur(Integer userId, String email, String nom) {
         Map<String, Object> donnees = new HashMap<>();
         donnees.put("action", "REGISTER");
@@ -81,9 +68,7 @@ public class JournalService {
         enregistrer(userId, TypeEntite.utilisateurs, Operation.INSERT, donnees, 1);
     }
 
-    /**
-     * Journalise une connexion reussie
-     */
+
     public void logConnexionReussie(Integer userId, String email, String authMode) {
         Map<String, Object> donnees = new HashMap<>();
         donnees.put("action", "LOGIN_SUCCESS");
@@ -93,9 +78,7 @@ public class JournalService {
         enregistrer(userId, TypeEntite.utilisateurs, Operation.UPDATE, donnees, null);
     }
 
-    /**
-     * Journalise une tentative de connexion echouee
-     */
+
     public void logConnexionEchouee(String email, String raison) {
         Map<String, Object> donnees = new HashMap<>();
         donnees.put("action", "LOGIN_FAILED");
@@ -105,9 +88,7 @@ public class JournalService {
         enregistrer(null, TypeEntite.utilisateurs, Operation.UPDATE, donnees, null);
     }
 
-    /**
-     * Journalise un blocage de compte
-     */
+
     public void logBlocageCompte(Integer userId, String email, Instant bloqueJusqua) {
         Map<String, Object> donnees = new HashMap<>();
         donnees.put("action", "ACCOUNT_BLOCKED");

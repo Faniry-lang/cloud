@@ -10,10 +10,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
-/**
- * Service Firestore pour la synchronisation des donnees avec Firebase.
- * Gere les operations CRUD sur Firestore et la synchronisation bidirectionnelle.
- */
 @Service
 public class FirestoreService {
 
@@ -25,18 +21,10 @@ public class FirestoreService {
     private static final String COLLECTION_ENTREPRISES = "entreprises";
     private static final String COLLECTION_SIGNALEMENTS = "signalements";
 
-    /**
-     * Obtient l'instance Firestore
-     */
     private Firestore getFirestore() {
         return FirestoreClient.getFirestore();
     }
 
-    // ==================== UTILISATEURS ====================
-
-    /**
-     * Cree ou met a jour un utilisateur dans Firestore
-     */
     public void saveUtilisateur(Integer id, String email, String nom, String firebaseUid,
                                  Integer version, Instant dateCreation) {
         try {
@@ -60,8 +48,31 @@ public class FirestoreService {
     }
 
     /**
-     * Recupere un utilisateur depuis Firestore par ID
+     * Cree ou met a jour un utilisateur dans Firestore avec son role
      */
+    public void saveUtilisateurWithRole(Integer id, String email, String nom, String firebaseUid,
+                                        String role, Integer version, Instant dateCreation) {
+        try {
+            Firestore db = getFirestore();
+            DocumentReference docRef = db.collection(COLLECTION_USERS).document(String.valueOf(id));
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("id", id);
+            data.put("email", email);
+            data.put("nom", nom);
+            data.put("firebaseUid", firebaseUid);
+            data.put("role", role != null ? role : "MANAGER");
+            data.put("version", version);
+            data.put("dateCreation", dateCreation != null ? dateCreation.toString() : null);
+            data.put("dateMiseAJour", Instant.now().toString());
+            data.put("synchronise", true);
+
+            docRef.set(data, SetOptions.merge()).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la sauvegarde utilisateur avec role dans Firestore: " + e.getMessage(), e);
+        }
+    }
+
     public Optional<Map<String, Object>> getUtilisateur(Integer id) {
         try {
             Firestore db = getFirestore();
@@ -79,9 +90,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere un utilisateur depuis Firestore par email
-     */
     public Optional<Map<String, Object>> getUtilisateurByEmail(String email) {
         try {
             Firestore db = getFirestore();
@@ -100,9 +108,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere tous les utilisateurs depuis Firestore
-     */
     public List<Map<String, Object>> getAllUtilisateurs() {
         try {
             Firestore db = getFirestore();
@@ -120,11 +125,6 @@ public class FirestoreService {
         }
     }
 
-    // ==================== JOURNAL ====================
-
-    /**
-     * Enregistre une entree de journal dans Firestore
-     */
     public void saveJournalEntry(Integer localId, Integer idEntite, String typeEntite,
                                   String operation, Map<String, Object> donnees,
                                   Integer version, Instant dateCreation) {
@@ -148,9 +148,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere les entrees de journal non synchronisees depuis Firestore
-     */
     public List<Map<String, Object>> getJournalEntriesAfter(Instant since) {
         try {
             Firestore db = getFirestore();
@@ -171,11 +168,6 @@ public class FirestoreService {
         }
     }
 
-    // ==================== ROLES ====================
-
-    /**
-     * Sauvegarde un role dans Firestore
-     */
     public void saveRole(Integer id, String nom, Instant dateCreation) {
         try {
             Firestore db = getFirestore();
@@ -193,9 +185,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere tous les roles depuis Firestore
-     */
     public List<Map<String, Object>> getAllRoles() {
         try {
             Firestore db = getFirestore();
@@ -213,9 +202,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere un role par ID depuis Firestore
-     */
     public Optional<Map<String, Object>> getRole(Integer id) {
         try {
             Firestore db = getFirestore();
@@ -233,9 +219,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Supprime un role dans Firestore (soft delete via flag)
-     */
     public void deleteRole(Integer id) {
         try {
             Firestore db = getFirestore();
@@ -251,11 +234,6 @@ public class FirestoreService {
         }
     }
 
-    // ==================== STATUTS ====================
-
-    /**
-     * Sauvegarde un statut dans Firestore
-     */
     public void saveStatut(Integer id, String description, Instant dateCreation) {
         try {
             Firestore db = getFirestore();
@@ -273,9 +251,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere tous les statuts depuis Firestore
-     */
     public List<Map<String, Object>> getAllStatuts() {
         try {
             Firestore db = getFirestore();
@@ -293,9 +268,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere un statut par ID depuis Firestore
-     */
     public Optional<Map<String, Object>> getStatut(Integer id) {
         try {
             Firestore db = getFirestore();
@@ -313,9 +285,7 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Supprime un statut dans Firestore (soft delete via flag)
-     */
+
     public void deleteStatut(Integer id) {
         try {
             Firestore db = getFirestore();
@@ -331,11 +301,6 @@ public class FirestoreService {
         }
     }
 
-    // ==================== ENTREPRISES ====================
-
-    /**
-     * Sauvegarde une entreprise dans Firestore
-     */
     public void saveEntreprise(Integer id, String nom, int version, Instant dateCreation) {
         try {
             Firestore db = getFirestore();
@@ -354,9 +319,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere toutes les entreprises depuis Firestore
-     */
     public List<Map<String, Object>> getAllEntreprises() {
         try {
             Firestore db = getFirestore();
@@ -366,7 +328,6 @@ public class FirestoreService {
             for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
                 if (doc.getData() != null) {
                     Map<String, Object> data = doc.getData();
-                    // Filtrer les entreprises non supprimees
                     if (data.get("dateSuppression") == null) {
                         entreprises.add(data);
                     }
@@ -378,9 +339,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere une entreprise par ID depuis Firestore
-     */
     public Optional<Map<String, Object>> getEntreprise(Integer id) {
         try {
             Firestore db = getFirestore();
@@ -402,9 +360,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Supprime une entreprise dans Firestore (soft delete via flag)
-     */
     public void deleteEntreprise(Integer id) {
         try {
             Firestore db = getFirestore();
@@ -420,11 +375,6 @@ public class FirestoreService {
         }
     }
 
-    // ==================== SIGNALEMENTS ====================
-
-    /**
-     * Sauvegarde un signalement dans Firestore
-     */
     public void saveSignalement(Integer id, String description, BigDecimal surfaceM2,
                                  BigDecimal budget, Integer idEntreprise, Integer version,
                                  Instant dateCreation) {
@@ -435,7 +385,7 @@ public class FirestoreService {
             Map<String, Object> data = new HashMap<>();
             data.put("id", id);
             data.put("description", description);
-            data.put("surfaceM2", surfaceM2 != null ? surfaceM2.toString() : null);
+            data.put("surfaceM2", surfaceM2 != null ? surfaceM2 : null);
             data.put("budget", budget != null ? budget.toString() : null);
             data.put("idEntreprise", idEntreprise);
             data.put("version", version);
@@ -448,9 +398,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere tous les signalements depuis Firestore
-     */
     public List<Map<String, Object>> getAllSignalements() {
         try {
             Firestore db = getFirestore();
@@ -472,9 +419,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere un signalement par ID depuis Firestore
-     */
     public Optional<Map<String, Object>> getSignalement(Integer id) {
         try {
             Firestore db = getFirestore();
@@ -485,7 +429,6 @@ public class FirestoreService {
 
             if (document.exists()) {
                 Map<String, Object> data = document.getData();
-                // Verifier si non supprime
                 if (data != null && data.get("dateSuppression") == null) {
                     return Optional.of(data);
                 }
@@ -496,9 +439,7 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere les signalements par entreprise depuis Firestore
-     */
+
     public List<Map<String, Object>> getSignalementsByEntreprise(Integer idEntreprise) {
         try {
             Firestore db = getFirestore();
@@ -511,7 +452,7 @@ public class FirestoreService {
             for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
                 if (doc.getData() != null) {
                     Map<String, Object> data = doc.getData();
-                    // Filtrer les signalements non supprimes
+
                     if (data.get("dateSuppression") == null) {
                         signalements.add(data);
                     }
@@ -523,9 +464,6 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Supprime un signalement dans Firestore (soft delete via flag)
-     */
     public void deleteSignalement(Integer id) {
         try {
             Firestore db = getFirestore();
@@ -541,11 +479,6 @@ public class FirestoreService {
         }
     }
 
-    // ==================== PARAMETRES ====================
-
-    /**
-     * Sauvegarde un parametre dans Firestore
-     */
     public void saveParametre(Integer id, String nom, String valeur, String type) {
         try {
             Firestore db = getFirestore();
@@ -564,9 +497,7 @@ public class FirestoreService {
         }
     }
 
-    /**
-     * Recupere tous les parametres depuis Firestore
-     */
+
     public List<Map<String, Object>> getAllParametres() {
         try {
             Firestore db = getFirestore();
@@ -584,11 +515,6 @@ public class FirestoreService {
         }
     }
 
-    // ==================== UTILITY ====================
-
-    /**
-     * Verifie si Firestore est accessible
-     */
     public boolean isAvailable() {
         try {
             Firestore db = getFirestore();
