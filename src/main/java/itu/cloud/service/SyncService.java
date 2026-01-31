@@ -5,17 +5,23 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import itu.cloud.entities.*;
 import itu.cloud.repositories.*;
+import itu.cloud.helpers.ConversionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Query;
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 
 /**
  * Service de synchronisation bidirectionnelle entre PostgreSQL local et Firestore.
- * Gere la logique de versionnage et la resolution des conflits.
- * Cree les comptes Firebase Auth pour les utilisateurs locaux sans firebase_uid.
  */
 @Service
 public class SyncService {
@@ -31,6 +37,10 @@ public class SyncService {
     private final FirebaseAuthService firebaseAuthService;
     private final JournalService journalService;
     private final ObjectMapper objectMapper;
+    private final DataSource dataSource;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public SyncService(UtilisateurRepository utilisateurRepository,
                        RoleRepository roleRepository,
@@ -42,7 +52,8 @@ public class SyncService {
                        FirestoreService firestoreService,
                        FirebaseAuthService firebaseAuthService,
                        JournalService journalService,
-                       ObjectMapper objectMapper) {
+                       ObjectMapper objectMapper,
+                       DataSource dataSource) {
         this.utilisateurRepository = utilisateurRepository;
         this.roleRepository = roleRepository;
         this.statutRepository = statutRepository;
@@ -54,6 +65,7 @@ public class SyncService {
         this.firebaseAuthService = firebaseAuthService;
         this.journalService = journalService;
         this.objectMapper = objectMapper;
+        this.dataSource = dataSource;
     }
 
     /**
@@ -385,7 +397,7 @@ public class SyncService {
                 if (remoteSignalement.isPresent()) {
                     // Comparer les versions
                     Object remoteVersionObj = remoteSignalement.get().get("version");
-                    Integer remoteVersion = remoteVersionObj != null ? ((Number) remoteVersionObj).intValue() : null;
+                    Integer remoteVersion = remoteVersionObj != null ? ConversionUtils.toInteger(remoteVersionObj) : null;
                     Integer localVersion = signalement.getVersion();
 
                     if (remoteVersion != null && localVersion != null && remoteVersion > localVersion) {
@@ -396,7 +408,10 @@ public class SyncService {
                     }
                 }
 
-                // Envoyer vers Firestore
+                // extraire lat/lng depuis la colonne points locale
+                Double[] latLng = getLatLngFor(signalement.getId());
+
+                // Envoyer vers Firestore (incluant lat/lng)
                 firestoreService.saveSignalement(
                     signalement.getId(),
                     signalement.getDescription(),
@@ -404,7 +419,9 @@ public class SyncService {
                     signalement.getBudget(),
                     signalement.getIdEntreprise() != null ? signalement.getIdEntreprise().getId() : null,
                     signalement.getVersion(),
-                    signalement.getDateCreation()
+                    signalement.getDateCreation(),
+                    latLng[0],
+                    latLng[1]
                 );
 
                 result.incrementLocalToRemote();
@@ -453,23 +470,34 @@ public class SyncService {
 
         for (Map<String, Object> remoteUser : remoteUsers) {
             try {
-                Integer remoteId = ((Number) remoteUser.get("id")).intValue();
-                String email = (String) remoteUser.get("email");
-                Integer remoteVersion = remoteUser.get("version") != null ?
-                    ((Number) remoteUser.get("version")).intValue() : 1;
+                Integer remoteId = ConversionUtils.toInteger(remoteUser.get("id"));
+                String email = remoteUser.get("email") != null ? remoteUser.get("email").toString() : null;
+                Integer remoteVersion = ConversionUtils.toInteger(remoteUser.get("version"));
+                if (remoteVersion == null) remoteVersion = 1;
 
-                Optional<Utilisateur> localUser = utilisateurRepository.findById(remoteId);
+                if (email == null) {
+                    result.addError("Utilisateur import ignore: email manquant: " + remoteUser);
+                    continue;
+                }
+
+                Optional<Utilisateur> localUser = Optional.empty();
+                if (remoteId != null) {
+                    localUser = utilisateurRepository.findById(remoteId);
+                } else {
+                    // try to find by email
+                    localUser = utilisateurRepository.findByEmail(email);
+                }
 
                 if (localUser.isEmpty()) {
                     // Creer localement
                     Utilisateur newUser = new Utilisateur();
                     newUser.setEmail(email);
-                    newUser.setNom((String) remoteUser.get("nom"));
-                    newUser.setFirebaseUid((String) remoteUser.get("firebaseUid"));
+                    newUser.setNom(remoteUser.get("nom") != null ? remoteUser.get("nom").toString() : null);
+                    newUser.setFirebaseUid(remoteUser.get("firebaseUid") != null ? remoteUser.get("firebaseUid").toString() : null);
                     newUser.setVersion(remoteVersion);
                     newUser.setActif(true);
                     newUser.setTentativesEchouees(0);
-                    newUser.setDateCreation(Instant.now());
+                    newUser.setDateCreation(ConversionUtils.toInstant(remoteUser.get("dateCreation")) != null ? ConversionUtils.toInstant(remoteUser.get("dateCreation")) : Instant.now());
 
                     utilisateurRepository.save(newUser);
                     result.incrementRemoteToLocal();
@@ -477,10 +505,10 @@ public class SyncService {
                 } else {
                     // Verifier la version
                     Utilisateur local = localUser.get();
-                    if (remoteVersion > local.getVersion()) {
+                    if (remoteVersion > (local.getVersion() != null ? local.getVersion() : 0)) {
                         // Mettre a jour depuis remote
-                        local.setNom((String) remoteUser.get("nom"));
-                        local.setFirebaseUid((String) remoteUser.get("firebaseUid"));
+                        local.setNom(remoteUser.get("nom") != null ? remoteUser.get("nom").toString() : local.getNom());
+                        local.setFirebaseUid(remoteUser.get("firebaseUid") != null ? remoteUser.get("firebaseUid").toString() : local.getFirebaseUid());
                         local.setVersion(remoteVersion);
                         local.setDateMisAJour(Instant.now());
 
@@ -503,24 +531,34 @@ public class SyncService {
 
         for (Map<String, Object> remoteEntreprise : remoteEntreprises) {
             try {
-                Integer remoteId = ((Number) remoteEntreprise.get("id")).intValue();
+                Integer remoteId = ConversionUtils.toInteger(remoteEntreprise.get("id"));
                 String nom = (String) remoteEntreprise.get("nom");
+
+                if (remoteId == null) {
+                    // pas d'id distant -> creer localement
+                    Entreprise newEntreprise = new Entreprise();
+                    newEntreprise.setNom(nom);
+                    newEntreprise.setDateCreation(Instant.now());
+                    entrepriseRepository.save(newEntreprise);
+                    result.incrementRemoteToLocal();
+                    result.addDetail("Entreprise " + nom + " importee depuis Firestore (id absent)");
+                    continue;
+                }
 
                 Optional<Entreprise> localEntreprise = entrepriseRepository.findById(remoteId);
 
                 if (localEntreprise.isEmpty()) {
-                    // Creer localement
+                    // Creer localement avec id non-preserve car JPA/sequence peut ne pas permettre
                     Entreprise newEntreprise = new Entreprise();
                     newEntreprise.setNom(nom);
                     newEntreprise.setDateCreation(Instant.now());
-
                     entrepriseRepository.save(newEntreprise);
                     result.incrementRemoteToLocal();
                     result.addDetail("Entreprise " + nom + " importee depuis Firestore");
                 } else {
                     // Mettre a jour si necessaire
                     Entreprise local = localEntreprise.get();
-                    if (!nom.equals(local.getNom())) {
+                    if (nom != null && !nom.equals(local.getNom())) {
                         local.setNom(nom);
                         local.setDateMisAJour(Instant.now());
                         entrepriseRepository.save(local);
@@ -542,54 +580,90 @@ public class SyncService {
 
         for (Map<String, Object> remoteSignalement : remoteSignalements) {
             try {
-                Integer remoteId = ((Number) remoteSignalement.get("id")).intValue();
-                Integer remoteVersion = remoteSignalement.get("version") != null ?
-                    ((Number) remoteSignalement.get("version")).intValue() : 1;
+                // Utiliser postgres_id en priorité sinon id
+                Object remoteIdObj = remoteSignalement.get("postgres_id");
+                if (remoteIdObj == null) remoteIdObj = remoteSignalement.get("id");
+                Integer remoteId = ConversionUtils.toInteger(remoteIdObj);
 
-                Optional<Signalement> localSignalement = signalementRepository.findById(remoteId);
+                Integer remoteVersion = ConversionUtils.toInteger(remoteSignalement.get("version"));
+                if (remoteVersion == null) remoteVersion = 1;
+
+                // Extract location if present
+                Double[] latLng = extractLatLng(remoteSignalement.get("location"));
+                Double latitude = latLng[0];
+                Double longitude = latLng[1];
+
+                Optional<Signalement> localSignalement = Optional.empty();
+                if (remoteId != null) {
+                    localSignalement = signalementRepository.findById(remoteId);
+                }
 
                 if (localSignalement.isEmpty()) {
-                    // Creer localement
+                    // Validate required foreign key idEntreprise before creating
+                    Integer idEntreprise = ConversionUtils.toInteger(remoteSignalement.get("idEntreprise"));
+                    if (idEntreprise == null) {
+                        result.addError("Signalement import ignore: idEntreprise manquant ou invalide pour remote data: " + remoteSignalement);
+                        continue;
+                    }
+
+                    // Create via repository to avoid mixing native inserts and JPA identity handling
                     Signalement newSignalement = new Signalement();
-                    newSignalement.setDescription((String) remoteSignalement.get("description"));
+                    newSignalement.setDescription(remoteSignalement.get("description") != null ? remoteSignalement.get("description").toString() : null);
 
-                    // Convertir surfaceM2
-                    if (remoteSignalement.get("surfaceM2") != null) {
-                        newSignalement.setSurfaceM2(new BigDecimal(remoteSignalement.get("surfaceM2").toString()));
-                    }
+                    BigDecimal surface = ConversionUtils.toBigDecimal(remoteSignalement.get("surfaceM2"));
+                    if (surface != null) newSignalement.setSurfaceM2(surface);
 
-                    // Convertir budget
-                    if (remoteSignalement.get("budget") != null) {
-                        newSignalement.setBudget(new BigDecimal(remoteSignalement.get("budget").toString()));
-                    }
+                    BigDecimal budget = ConversionUtils.toBigDecimal(remoteSignalement.get("budget"));
+                    if (budget != null) newSignalement.setBudget(budget);
 
-                    // Lier l'entreprise
-                    if (remoteSignalement.get("idEntreprise") != null) {
-                        Integer idEntreprise = ((Number) remoteSignalement.get("idEntreprise")).intValue();
-                        Optional<Entreprise> entreprise = entrepriseRepository.findById(idEntreprise);
-                        if (entreprise.isPresent()) {
-                            newSignalement.setIdEntreprise(entreprise.get());
-                        }
+                    // set entreprise (required)
+                    Optional<Entreprise> entOpt = entrepriseRepository.findById(idEntreprise);
+                    if (entOpt.isEmpty()) {
+                        result.addError("Signalement import ignore: entreprise locale introuvable pour id=" + idEntreprise + ". Remote data: " + remoteSignalement);
+                        // do not create the signalement to avoid DB constraint violations
+                        continue;
                     }
+                    newSignalement.setIdEntreprise(entOpt.get());
 
                     newSignalement.setVersion(remoteVersion);
-                    newSignalement.setDateCreation(Instant.now());
+                    Instant dateCreation = ConversionUtils.toInstant(remoteSignalement.get("dateCreation"));
+                    newSignalement.setDateCreation(dateCreation != null ? dateCreation : Instant.now());
 
-                    signalementRepository.save(newSignalement);
+                    Signalement saved = signalementRepository.save(newSignalement);
+                    Integer createdId = saved.getId();
+
                     result.incrementRemoteToLocal();
-                    result.addDetail("Signalement #" + remoteId + " importe depuis Firestore");
-                } else {
-                    // Verifier la version
-                    Signalement local = localSignalement.get();
-                    if (remoteVersion > local.getVersion()) {
-                        // Mettre a jour depuis remote
-                        local.setDescription((String) remoteSignalement.get("description"));
+                    result.addDetail("Signalement local cree (id genere): " + createdId);
 
-                        if (remoteSignalement.get("surfaceM2") != null) {
-                            local.setSurfaceM2(new BigDecimal(remoteSignalement.get("surfaceM2").toString()));
+                    // Mettre a jour la colonne points si location presente
+                    if (latitude != null && longitude != null) {
+                        try {
+                            updatePointsInDb(createdId, longitude, latitude, result);
+                            result.addDetail("Points geographiques pour signalement #" + createdId + " mis a jour");
+                        } catch (Exception e) {
+                            result.addError("Impossible de mettre a jour points pour signalement #" + createdId + ": " + e.getMessage());
                         }
-                        if (remoteSignalement.get("budget") != null) {
-                            local.setBudget(new BigDecimal(remoteSignalement.get("budget").toString()));
+                    }
+
+                } else {
+                    // existing local: update if remote version newer
+                    Signalement local = localSignalement.get();
+                    if (remoteVersion > (local.getVersion() != null ? local.getVersion() : 0)) {
+                        local.setDescription(remoteSignalement.get("description") != null ? remoteSignalement.get("description").toString() : local.getDescription());
+
+                        BigDecimal surface = ConversionUtils.toBigDecimal(remoteSignalement.get("surfaceM2"));
+                        if (surface != null) local.setSurfaceM2(surface);
+
+                        BigDecimal budget = ConversionUtils.toBigDecimal(remoteSignalement.get("budget"));
+                        if (budget != null) local.setBudget(budget);
+
+                        Integer idEntreprise = ConversionUtils.toInteger(remoteSignalement.get("idEntreprise"));
+                        if (idEntreprise != null) {
+                            entrepriseRepository.findById(idEntreprise).ifPresent(local::setIdEntreprise);
+                        } else {
+                            // si idEntreprise invalide -> log et skip update to avoid DB constraint fail
+                            result.addError("Signalement update ignore (idEntreprise invalide) pour remote: " + remoteSignalement);
+                            continue;
                         }
 
                         local.setVersion(remoteVersion);
@@ -597,13 +671,68 @@ public class SyncService {
 
                         signalementRepository.save(local);
                         result.incrementRemoteToLocal();
-                        result.addDetail("Signalement #" + remoteId + " mis a jour depuis Firestore");
+                        result.addDetail("Signalement #" + (remoteId != null ? remoteId : local.getId()) + " mis a jour depuis Firestore");
+
+                        // Mettre a jour points si location presente
+                        if (latitude != null && longitude != null) {
+                            try {
+                                updatePointsInDb(local.getId(), longitude, latitude, result);
+                                result.addDetail("Points geographiques pour signalement #" + local.getId() + " mis a jour");
+                            } catch (Exception e) {
+                                result.addError("Impossible de mettre a jour points pour signalement #" + local.getId() + ": " + e.getMessage());
+                            }
+                        }
                     }
                 }
             } catch (Exception e) {
+                // clear persistence context to avoid Hibernate AssertionFailure when a previous save partially failed
+                try { entityManager.clear(); } catch (Exception ignored) {}
                 result.addError("Erreur import signalement: " + e.getMessage());
             }
         }
+    }
+
+    /**
+     * Extrait latitude/longitude depuis l'objet 'location' renvoyé par Firestore.
+     * Supporte Map<String,Object> ou String formattée.
+     * Retourne Double[]{lat, lng} ou {null, null} si absent.
+     */
+    private Double[] extractLatLng(Object locObj) {
+        Double lat = null;
+        Double lng = null;
+
+        if (locObj == null) return new Double[]{null, null};
+
+        if (locObj instanceof Map) {
+            Map<?, ?> loc = (Map<?, ?>) locObj;
+            Object latObj = loc.get("lat");
+            Object lngObj = loc.get("lng");
+            if (latObj instanceof Number) lat = ((Number) latObj).doubleValue();
+            else if (latObj instanceof String) {
+                try { lat = Double.parseDouble(((String) latObj).trim()); } catch (Exception ignored) {}
+            }
+            if (lngObj instanceof Number) lng = ((Number) lngObj).doubleValue();
+            else if (lngObj instanceof String) {
+                try { lng = Double.parseDouble(((String) lngObj).trim()); } catch (Exception ignored) {}
+            }
+            return new Double[]{lat, lng};
+        }
+
+        // Si c'est une String du type "{lng=47.56, lat=-18.87}" ou "lat=.., lng=.."
+        if (locObj instanceof String) {
+            String s = (String) locObj;
+            try {
+                // rechercher lat et lng à l'aide de regex
+                java.util.regex.Pattern pLat = java.util.regex.Pattern.compile("lat\\s*=\\s*([-+]?[0-9]*\\.?[0-9]+)", java.util.regex.Pattern.CASE_INSENSITIVE);
+                java.util.regex.Pattern pLng = java.util.regex.Pattern.compile("lng\\s*=\\s*([-+]?[0-9]*\\.?[0-9]+)", java.util.regex.Pattern.CASE_INSENSITIVE);
+                java.util.regex.Matcher mLat = pLat.matcher(s);
+                java.util.regex.Matcher mLng = pLng.matcher(s);
+                if (mLat.find()) lat = Double.parseDouble(mLat.group(1));
+                if (mLng.find()) lng = Double.parseDouble(mLng.group(1));
+            } catch (Exception ignored) {}
+        }
+
+        return new Double[]{lat, lng};
     }
 
     /**
@@ -633,6 +762,41 @@ public class SyncService {
             return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
         } catch (JsonProcessingException e) {
             return new HashMap<>();
+        }
+    }
+
+    // helper to extract lat/lng from points geometry for a given signalement id
+    private Double[] getLatLngFor(Integer id) {
+        if (id == null) return new Double[]{null, null};
+        String sql = "SELECT ST_Y(points) as lat, ST_X(points) as lng FROM signalements WHERE id = ?";
+        try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    double lat = rs.getDouble("lat");
+                    if (rs.wasNull()) return new Double[]{null, null};
+                    double lng = rs.getDouble("lng");
+                    if (rs.wasNull()) return new Double[]{null, null};
+                    return new Double[]{lat, lng};
+                }
+            }
+        } catch (SQLException e) {
+            // ignore
+        }
+        return new Double[]{null, null};
+    }
+
+    // JDBC helper to update points using DataSource
+    private void updatePointsInDb(Integer id, Double longitude, Double latitude, SyncResult result) {
+        if (id == null || longitude == null || latitude == null) return;
+        String sql = "UPDATE signalements SET points = ST_SetSRID(ST_MakePoint(?, ?), 4326) WHERE id = ?";
+        try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDouble(1, longitude);
+            ps.setDouble(2, latitude);
+            ps.setInt(3, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            result.addError("Impossible de mettre a jour points (JDBC) pour signalement #" + id + ": " + e.getMessage());
         }
     }
 }

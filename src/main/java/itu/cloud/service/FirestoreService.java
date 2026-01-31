@@ -100,11 +100,67 @@ public class FirestoreService {
                     .get();
 
             if (!querySnapshot.isEmpty()) {
-                return Optional.ofNullable(querySnapshot.getDocuments().get(0).getData());
+                DocumentSnapshot doc = querySnapshot.getDocuments().get(0);
+                Map<String, Object> data = doc.getData();
+                if (data == null) data = new HashMap<>();
+                // include the firestore document id so callers can use it to update the exact doc
+                data.put("firebase_id", doc.getId());
+                return Optional.ofNullable(data);
             }
             return Optional.empty();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Erreur lors de la recherche utilisateur par email: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Sauvegarde un utilisateur en utilisant l'identifiant du document Firestore (docId).
+     */
+    public void saveUtilisateurByDocId(String docId, Integer id, String email, String nom, String firebaseUid,
+                                       Integer version, Instant dateCreation) {
+        try {
+            Firestore db = getFirestore();
+            DocumentReference docRef = db.collection(COLLECTION_USERS).document(docId);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("id", id);
+            data.put("email", email);
+            data.put("nom", nom);
+            data.put("firebaseUid", firebaseUid);
+            data.put("version", version);
+            data.put("dateCreation", dateCreation != null ? dateCreation.toString() : null);
+            data.put("dateMiseAJour", Instant.now().toString());
+            data.put("synchronise", true);
+
+            docRef.set(data, SetOptions.merge()).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la sauvegarde utilisateur dans Firestore (docId): " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Sauvegarde un utilisateur avec role en utilisant l'identifiant du document Firestore (docId).
+     */
+    public void saveUtilisateurWithRoleByDocId(String docId, Integer id, String email, String nom, String firebaseUid,
+                                               String role, Integer version, Instant dateCreation) {
+        try {
+            Firestore db = getFirestore();
+            DocumentReference docRef = db.collection(COLLECTION_USERS).document(docId);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("id", id);
+            data.put("email", email);
+            data.put("nom", nom);
+            data.put("firebaseUid", firebaseUid);
+            data.put("role", role != null ? role : "MANAGER");
+            data.put("version", version);
+            data.put("dateCreation", dateCreation != null ? dateCreation.toString() : null);
+            data.put("dateMiseAJour", Instant.now().toString());
+            data.put("synchronise", true);
+
+            docRef.set(data, SetOptions.merge()).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la sauvegarde utilisateur avec role dans Firestore (docId): " + e.getMessage(), e);
         }
     }
 
@@ -375,27 +431,93 @@ public class FirestoreService {
         }
     }
 
-    public void saveSignalement(Integer id, String description, BigDecimal surfaceM2,
-                                 BigDecimal budget, Integer idEntreprise, Integer version,
-                                 Instant dateCreation) {
+    public void saveSignalement(String id, String description, BigDecimal surfaceM2,
+                                BigDecimal budget, Integer idEntreprise, Integer version,
+                                Instant dateCreation, Double latitude, Double longitude) {
         try {
             Firestore db = getFirestore();
-            DocumentReference docRef = db.collection(COLLECTION_SIGNALEMENTS).document(String.valueOf(id));
+            DocumentReference docRef = db.collection(COLLECTION_SIGNALEMENTS).document(id);
 
             Map<String, Object> data = new HashMap<>();
+            // id remains the document id
             data.put("id", id);
             data.put("description", description);
-            data.put("surfaceM2", surfaceM2 != null ? surfaceM2 : null);
-            data.put("budget", budget != null ? budget.toString() : null);
+
+            if (surfaceM2 != null) data.put("surfaceM2", surfaceM2.doubleValue());
+            else data.put("surfaceM2", null);
+
+            if (budget != null) data.put("budget", budget.doubleValue());
+            else data.put("budget", null);
+
             data.put("idEntreprise", idEntreprise);
             data.put("version", version);
             data.put("dateCreation", dateCreation != null ? dateCreation.toString() : null);
             data.put("dateMiseAJour", Instant.now().toString());
 
+            // location
+            if (latitude != null && longitude != null) {
+                Map<String, Object> loc = new HashMap<>();
+                loc.put("lat", latitude);
+                loc.put("lng", longitude);
+                data.put("location", loc);
+            }
+
             docRef.set(data, SetOptions.merge()).get();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Erreur lors de la sauvegarde signalement dans Firestore: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Cree ou met a jour un signalement dans Firestore
+     * Ajoute postgres_id et la location si fournie.
+     */
+    public void saveSignalement(Integer id, String description, BigDecimal surfaceM2,
+                                 BigDecimal budget, Integer idEntreprise, Integer version,
+                                 Instant dateCreation, Double latitude, Double longitude) {
+        try {
+            Firestore db = getFirestore();
+            DocumentReference docRef = db.collection(COLLECTION_SIGNALEMENTS).document(String.valueOf(id));
+
+            Map<String, Object> data = new HashMap<>();
+            // id remains the document id
+            data.put("id", id);
+            // keep postgres_id for compatibility
+            data.put("postgres_id", id);
+            data.put("description", description);
+
+            if (surfaceM2 != null) data.put("surfaceM2", surfaceM2.doubleValue());
+            else data.put("surfaceM2", null);
+
+            if (budget != null) data.put("budget", budget.doubleValue());
+            else data.put("budget", null);
+
+            data.put("idEntreprise", idEntreprise);
+            data.put("version", version);
+            data.put("dateCreation", dateCreation != null ? dateCreation.toString() : null);
+            data.put("dateMiseAJour", Instant.now().toString());
+
+            // location
+            if (latitude != null && longitude != null) {
+                Map<String, Object> loc = new HashMap<>();
+                loc.put("lat", latitude);
+                loc.put("lng", longitude);
+                data.put("location", loc);
+            }
+
+            docRef.set(data, SetOptions.merge()).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la sauvegarde signalement dans Firestore: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Compatibility overload: ancienne signature sans latitude/longitude.
+     */
+    public void saveSignalement(Integer id, String description, BigDecimal surfaceM2,
+                                 BigDecimal budget, Integer idEntreprise, Integer version,
+                                 Instant dateCreation) {
+        saveSignalement(id, description, surfaceM2, budget, idEntreprise, version, dateCreation, null, null);
     }
 
     public List<Map<String, Object>> getAllSignalements() {
@@ -407,12 +529,15 @@ public class FirestoreService {
             for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
                 if (doc.getData() != null) {
                     Map<String, Object> data = doc.getData();
+                    data.put("firebase_id", doc.getId());
+
                     // Filtrer les signalements non supprimes
                     if (data.get("dateSuppression") == null) {
                         signalements.add(data);
                     }
                 }
             }
+
             return signalements;
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Erreur lors de la recuperation des signalements: " + e.getMessage(), e);
@@ -429,6 +554,30 @@ public class FirestoreService {
 
             if (document.exists()) {
                 Map<String, Object> data = document.getData();
+                data.put("firebase_id", document.getId());
+
+                if (data != null && data.get("dateSuppression") == null) {
+                    return Optional.of(data);
+                }
+            }
+            return Optional.empty();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la lecture signalement depuis Firestore: " + e.getMessage(), e);
+        }
+    }
+
+    public Optional<Map<String, Object>> getSignalementFromFirebase(String id) {
+        try {
+            Firestore db = getFirestore();
+            DocumentSnapshot document = db.collection(COLLECTION_SIGNALEMENTS)
+                    .document(id)
+                    .get()
+                    .get();
+
+            if (document.exists()) {
+                Map<String, Object> data = document.getData();
+                data.put("firebase_id", document.getId());
+
                 if (data != null && data.get("dateSuppression") == null) {
                     return Optional.of(data);
                 }
@@ -522,6 +671,67 @@ public class FirestoreService {
             return true;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    /**
+     * Sauvegarde l'état relatif au blocage (tentatives + bloqueJusqua) pour un utilisateur dans Firestore (merge)
+     */
+    public void saveUtilisateurState(Integer id, Integer tentativesEchouees, Instant bloqueJusqua) {
+        saveUtilisateurState(id, tentativesEchouees, bloqueJusqua, null, null);
+    }
+
+    /**
+     * Sauvegarde l'etat utilisateur. Cherche d'abord par email si fourni, sinon tente docId == id ou champ 'id'.
+     * Ne crée jamais un document avec id "null".
+     */
+    public void saveUtilisateurState(Integer id, Integer tentativesEchouees, Instant bloqueJusqua, Boolean actif, String email) {
+        try {
+            Firestore db = getFirestore();
+
+            String docId = null;
+
+            // Priorite: lookup par email si fourni
+            if (email != null && !email.isBlank()) {
+                Optional<Map<String, Object>> remote = getUtilisateurByEmail(email);
+                if (remote.isPresent()) {
+                    Object fid = remote.get().get("firebase_id");
+                    if (fid instanceof String) docId = (String) fid;
+                }
+            }
+
+            // Si pas trouve par email, essayer doc avec id == localId (ancienne compat)
+            if (docId == null && id != null) {
+                DocumentReference refById = db.collection(COLLECTION_USERS).document(String.valueOf(id));
+                DocumentSnapshot snap = refById.get().get();
+                if (snap.exists()) {
+                    docId = snap.getId();
+                } else {
+                    // fallback: query where field 'id' equals local id
+                    QuerySnapshot qs = db.collection(COLLECTION_USERS).whereEqualTo("id", id).limit(1).get().get();
+                    if (!qs.isEmpty()) {
+                        docId = qs.getDocuments().get(0).getId();
+                    }
+                }
+            }
+
+            if (docId == null) {
+                // no document found to update; avoid creating a document with id 'null'
+                throw new RuntimeException("Impossible de trouver le document Firestore de l'utilisateur (id et email manquants ou introuvables)");
+            }
+
+            DocumentReference docRef = db.collection(COLLECTION_USERS).document(docId);
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("tentativesEchouees", tentativesEchouees != null ? tentativesEchouees : 0);
+            updates.put("bloqueJusqua", bloqueJusqua != null ? bloqueJusqua.toString() : null);
+            if (actif != null) updates.put("actif", actif);
+            updates.put("dateMiseAJour", Instant.now().toString());
+            updates.put("synchronise", true);
+
+            docRef.set(updates, SetOptions.merge()).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Erreur lors de la sauvegarde de l'etat utilisateur dans Firestore: " + e.getMessage(), e);
         }
     }
 }

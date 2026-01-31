@@ -24,7 +24,6 @@ public class RegisterResponse {
         private Integer id;
         private String email;
         private String nom;
-        private String role;
         private String statut;
     }
 }

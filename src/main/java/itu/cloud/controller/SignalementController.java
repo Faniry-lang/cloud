@@ -26,12 +26,20 @@ public class SignalementController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<SignalementDTO>> getById(@PathVariable Integer id) {
-        ApiResponse<SignalementDTO> response = signalementService.getById(id);
-        if (response.isSuccess()) {
-            return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<SignalementDTO>> getById(@PathVariable String id) {
+        String postgresId = id.split("-")[0];
+        String firebaseId = id.split("-")[1];
+        ApiResponse<SignalementDTO> responseFromFirestore = signalementService.getByIdFromFirebase(firebaseId);
+        if (responseFromFirestore.isSuccess()) {
+            return ResponseEntity.ok(responseFromFirestore);
+        } else if(postgresId != null && !postgresId.isEmpty()) {
+            ApiResponse<SignalementDTO> responseFromLocalPg = signalementService.getById(Integer.valueOf(postgresId));
+            if(responseFromLocalPg.isSuccess()) {
+                return ResponseEntity.ok(responseFromLocalPg);
+            }
+
         }
-        return ResponseEntity.status(404).body(response);
+        return ResponseEntity.status(404).body(responseFromFirestore);
     }
 
 
@@ -51,12 +59,19 @@ public class SignalementController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<SignalementDTO>> update(@PathVariable Integer id, @RequestBody SignalementDTO dto) {
-        ApiResponse<SignalementDTO> response = signalementService.update(id, dto);
-        if (response.isSuccess()) {
-            return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<SignalementDTO>> update(@PathVariable String id, @RequestBody SignalementDTO dto) {
+        String postgresId = id.split("-")[0];
+        String firebaseId = id.split("-")[1];
+        ApiResponse<SignalementDTO> responseFromFirestore = signalementService.updateToFirebase(firebaseId, dto);
+        if (responseFromFirestore.isSuccess()) {
+            return ResponseEntity.ok(responseFromFirestore);
+        } else if(postgresId != null && !postgresId.isEmpty()) {
+            ApiResponse<SignalementDTO> responseFromLocalPg = signalementService.update(Integer.valueOf(postgresId), dto);
+            if(responseFromLocalPg.isSuccess()) {
+                return ResponseEntity.ok(responseFromLocalPg);
+            }
         }
-        return ResponseEntity.badRequest().body(response);
+        return ResponseEntity.badRequest().body(responseFromFirestore);
     }
 
     @DeleteMapping("/{id}")

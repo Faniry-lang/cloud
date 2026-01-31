@@ -1,3 +1,4 @@
+// java
 package itu.cloud.dto;
 
 import lombok.AllArgsConstructor;
@@ -14,6 +15,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class SignalementDTO {
     private Integer id;
+    private String firebaseId;
     private String description;
     private BigDecimal surfaceM2;
     private BigDecimal budget;
@@ -22,5 +24,6 @@ public class SignalementDTO {
     private Integer version;
     private Instant dateCreation;
     private Instant dateMisAJour;
+    private Double latitude;
+    private Double longitude;
 }
-

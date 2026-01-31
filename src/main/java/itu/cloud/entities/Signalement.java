@@ -18,6 +18,9 @@ public class Signalement {
     @Column(name = "id", nullable = false)
     private Integer id;
 
+    @Column(name = "firebase_id")
+    private String firebaseId;
+
     @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;
 
@@ -27,7 +30,7 @@ public class Signalement {
     @Column(name = "budget", precision = 15, scale = 2)
     private BigDecimal budget;
 
-    @Column(name = "points", columnDefinition = "geometry")
+    @Column(name = "points", columnDefinition = "geometry", insertable = false, updatable = false)
     private Object points;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

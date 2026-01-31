@@ -124,5 +124,21 @@ public class AuthController {
             ));
         }
     }
-}
 
+    @PutMapping("/update-user/{email}")
+    public ResponseEntity<?> updateUserByEmail(@PathVariable String email, @RequestBody Map<String, Object> updates) {
+        try {
+            Map<String, Object> result = authService.updateUserByEmail(email, updates);
+            if (Boolean.TRUE.equals(result.get("success"))) {
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("success", false, "error", e.getMessage()));
+        }
+    }
+
+}

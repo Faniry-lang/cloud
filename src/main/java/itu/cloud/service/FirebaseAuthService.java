@@ -1,5 +1,6 @@
 package itu.cloud.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import itu.cloud.dto.LoginRequest;
 import itu.cloud.dto.LoginResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,12 +22,14 @@ public class FirebaseAuthService {
     private String firebaseApiKey;
 
     private static final String FIREBASE_AUTH_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=";
-    private static final String FIREBASE_SIGNUP_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=";
+    private static final String FIREBASE_SIGNUP_URL = "https://identitytool.googleapis.com/v1/accounts:signUp?key=";
 
     private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
 
     public FirebaseAuthService() {
         this.restTemplate = new RestTemplate();
+        this.objectMapper = new ObjectMapper();
     }
 
     @SuppressWarnings("unchecked")
@@ -57,7 +60,7 @@ public class FirebaseAuthService {
             String error = extractFirebaseError(e);
             System.err.println("Erreur creation Firebase: " + error);
 
-            if (error.contains("EMAIL_EXISTS")) {
+            if (error != null && error.contains("EMAIL_EXISTS")) {
                 LoginRequest loginReq = new LoginRequest();
                 loginReq.setEmail(email);
                 loginReq.setPassword(password);
@@ -143,15 +146,25 @@ public class FirebaseAuthService {
         try {
             String responseBody = e.getResponseBodyAsString();
             System.out.println("Firebase error raw: "+responseBody);
-            if (responseBody.contains("\"message\"")) {
-                int start = responseBody.indexOf("\"message\"") + 11;
-                int end = responseBody.indexOf("\"", start);
-                return responseBody.substring(start, end);
+            // Parse JSON safely
+            Map<?, ?> map = objectMapper.readValue(responseBody, Map.class);
+            if (map.containsKey("error")) {
+                Object errObj = map.get("error");
+                if (errObj instanceof Map) {
+                    Object msg = ((Map<?, ?>) errObj).get("message");
+                    if (msg != null) return msg.toString();
+                }
             }
+            // fallback: try top-level message
+            if (map.containsKey("message")) {
+                Object msg = map.get("message");
+                if (msg != null) return msg.toString();
+            }
+            return responseBody;
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            System.out.println("Erreur parsing firebase error: " + ex.getMessage());
+            return "UNKNOWN_ERROR";
         }
-        return "UNKNOWN_ERROR";
     }
 
     private String translateFirebaseError(String errorMessage) {
@@ -160,8 +173,9 @@ public class FirebaseAuthService {
             case "INVALID_PASSWORD" -> "Mot de passe incorrect";
             case "USER_DISABLED" -> "Ce compte a été désactivé";
             case "INVALID_LOGIN_CREDENTIALS" -> "Email ou mot de passe incorrect";
+            case "INVALID_LOGIN_TOKEN" -> "Jeton invalide";
             case "TOO_MANY_ATTEMPTS_TRY_LATER" -> "Trop de tentatives. Veuillez réessayer plus tard";
-            default -> errorMessage;
+            default -> errorMessage != null ? errorMessage : "UNKNOWN_ERROR";
         };
     }
 }

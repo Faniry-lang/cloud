@@ -305,6 +305,16 @@ public class UtilisateurService {
         }
     }
 
+    // exposer findById pour les filtres/auth
+    public Optional<Utilisateur> findById(Integer id) {
+        return utilisateurRepository.findById(id);
+    }
+
+    // exposer findByEmail pour les filtres/auth
+    public Optional<Utilisateur> findByEmail(String email) {
+        return utilisateurRepository.findByEmail(email);
+    }
+
     // ==================== MAPPING ====================
 
     private UtilisateurDTO mapToDTO(Utilisateur entity) {

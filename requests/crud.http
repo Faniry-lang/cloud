@@ -31,7 +31,7 @@ DELETE http://127.0.0.1:8080/api/entreprises/1
 ### ===================== SIGNALEMENTS =====================
 
 ### Liste tous les signalements
-GET http://127.0.0.1:8080/api/signalements
+GET http://localhost:8080/api/signalements
 Accept: application/json
 
 ### Recupere un signalement par ID

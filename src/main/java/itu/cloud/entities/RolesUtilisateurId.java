@@ -20,5 +20,4 @@ public class RolesUtilisateurId implements Serializable {
     @Column(name = "id_role", nullable = false)
     private Integer idRole;
 
-
 }

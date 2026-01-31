@@ -97,18 +97,11 @@ public class LocalAuthService {
 
         utilisateur = utilisateurRepository.save(utilisateur);
 
-        // Attribuer le role (celui de la requete ou VISITOR par defaut)
-        String roleNom = assignerRole(utilisateur, request.getRole());
-
         // Attribuer le statut par defaut
         String statutDescription = assignerStatutParDefaut(utilisateur);
-
-        // Journaliser la creation
         journalService.logCreationUtilisateur(utilisateur.getId(), utilisateur.getEmail(), utilisateur.getNom());
-        journalService.logAttributionRole(utilisateur.getId(), roleNom);
         journalService.logAttributionStatut(utilisateur.getId(), statutDescription);
 
-        // Synchroniser avec Firestore (best effort - ne bloque pas si echec)
         syncToFirestore(utilisateur);
 
         return RegisterResponse.builder()
@@ -117,7 +110,6 @@ public class LocalAuthService {
                         .id(utilisateur.getId())
                         .email(utilisateur.getEmail())
                         .nom(utilisateur.getNom())
-                        .role(roleNom)
                         .statut(statutDescription)
                         .build())
                 .build();

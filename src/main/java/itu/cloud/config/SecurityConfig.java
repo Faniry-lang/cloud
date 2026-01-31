@@ -1,6 +1,10 @@
 package itu.cloud.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import itu.cloud.security.JwtAuthenticationFilter;
+import itu.cloud.security.JwtUtil;
+import itu.cloud.service.ParametreService;
+import itu.cloud.service.UtilisateurService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -51,7 +55,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtUtil jwtUtil, ParametreService parametreService, UtilisateurService utilisateurService) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -61,9 +65,9 @@ public class SecurityConfig {
                 .requestMatchers("/sync/**").permitAll()
                 .requestMatchers("/api/**").permitAll()
                 .anyRequest().authenticated()
-            );
+            )
+            .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, parametreService, utilisateurService), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 }
-

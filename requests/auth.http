@@ -14,10 +14,9 @@ POST http://127.0.0.1:8080/auth/register
 Content-Type: application/json
 
 {
-  "email": "body@gmail.com",
-  "password": "password123",
-  "nom": "Nouveau bebe",
-  "role": "manager"
+  "email": "nickfury@gmail.com",
+  "password": "nickfury",
+  "nom": "nick"
 }
 
 ### Login - Connexion utilisateur
@@ -27,8 +26,8 @@ POST http://127.0.0.1:8080/auth/login
 Content-Type: application/json
 
 {
-  "email": "nouveau@example.com",
-  "password": "password123"
+  "email": "ranaivosonf647@gmail.com",
+  "password": "ranaivopromail"
 }
 
 ### Login - Connexion avec compte Firebase existant

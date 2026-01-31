@@ -19,12 +19,16 @@ public class ParametreService {
     public static final String PARAM_BLOCK_DURATION_MINUTES = "BLOCK_DURATION_MINUTES";
     public static final String PARAM_DEFAULT_ROLE = "DEFAULT_ROLE";
     public static final String PARAM_DEFAULT_STATUS = "DEFAULT_STATUS";
+    public static final String PARAM_JWT_EXPIRATION_MINUTES = "JWT_EXPIRATION_MINUTES";
+    public static final String PARAM_JWT_SECRET = "JWT_SECRET";
 
     // Valeurs par défaut (fallback si non présent en BDD)
     private static final int DEFAULT_MAX_FAILED_ATTEMPTS = 5;
     private static final int DEFAULT_BLOCK_DURATION_MINUTES = 30;
     private static final String DEFAULT_ROLE = "USER";
     private static final String DEFAULT_STATUS = "ACTIF";
+    private static final int DEFAULT_JWT_EXPIRATION_MINUTES = 60;
+    private static final String DEFAULT_JWT_SECRET = "change_this_secret_in_production";
 
     private final ParametreRepository parametreRepository;
 
@@ -75,6 +79,14 @@ public class ParametreService {
         return getString(PARAM_DEFAULT_STATUS, DEFAULT_STATUS);
     }
 
+    public int getJwtExpirationMinutes() {
+        return getInt(PARAM_JWT_EXPIRATION_MINUTES, DEFAULT_JWT_EXPIRATION_MINUTES);
+    }
+
+    public String getJwtSecret() {
+        return getString(PARAM_JWT_SECRET, DEFAULT_JWT_SECRET);
+    }
+
     public Parametre setParametre(String nom, String valeur, String type) {
         Optional<Parametre> existant = getParametre(nom);
 
@@ -108,6 +120,11 @@ public class ParametreService {
         if (getParametre(PARAM_DEFAULT_STATUS).isEmpty()) {
             setParametre(PARAM_DEFAULT_STATUS, DEFAULT_STATUS, "STRING");
         }
+        if (getParametre(PARAM_JWT_EXPIRATION_MINUTES).isEmpty()) {
+            setParametre(PARAM_JWT_EXPIRATION_MINUTES, String.valueOf(DEFAULT_JWT_EXPIRATION_MINUTES), "INTEGER");
+        }
+        if (getParametre(PARAM_JWT_SECRET).isEmpty()) {
+            setParametre(PARAM_JWT_SECRET, DEFAULT_JWT_SECRET, "STRING");
+        }
     }
 }
-
