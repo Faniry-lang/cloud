@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -34,7 +34,7 @@ public class Utilisateur {
     private Integer tentativesEchouees;
 
     @Column(name = "bloque_jusqua")
-    private Instant bloqueJusqua;
+    private LocalDateTime bloqueJusqua;
 
     @ColumnDefault("true")
     @Column(name = "actif")
@@ -46,13 +46,13 @@ public class Utilisateur {
 
     @ColumnDefault("now()")
     @Column(name = "date_creation")
-    private Instant dateCreation;
+    private LocalDateTime dateCreation;
 
     @Column(name = "date_mis_a_jour")
-    private Instant dateMisAJour;
+    private LocalDateTime dateMisAJour;
 
     @Column(name = "date_suppression")
-    private Instant dateSuppression;
+    private LocalDateTime dateSuppression;
 
 
 }

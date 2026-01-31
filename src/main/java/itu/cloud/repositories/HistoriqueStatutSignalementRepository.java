@@ -1,8 +1,9 @@
 package itu.cloud.repositories;
 
 import itu.cloud.entities.HistoriqueStatutSignalement;
-import itu.cloud.entities.HistoriqueStatutSignalementId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-public interface HistoriqueStatutSignalementRepository extends JpaRepository<HistoriqueStatutSignalement, HistoriqueStatutSignalementId> {
+@Repository
+public interface HistoriqueStatutSignalementRepository extends JpaRepository<HistoriqueStatutSignalement, Integer> {
 }

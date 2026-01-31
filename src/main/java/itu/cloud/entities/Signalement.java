@@ -5,8 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 
-import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -18,24 +17,28 @@ public class Signalement {
     @Column(name = "id", nullable = false)
     private Integer id;
 
-    @Column(name = "firebase_id")
-    private String firebaseId;
+    @Column(name = "firebase_uid", length = 100)
+    private String firebaseUid;
 
     @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;
 
-    @Column(name = "surface_m2", precision = 15, scale = 2)
-    private BigDecimal surfaceM2;
+    @Column(name = "surface_m2")
+    private double surfaceM2;
 
-    @Column(name = "budget", precision = 15, scale = 2)
-    private BigDecimal budget;
+    @Column(name = "budget")
+    private double budget;
 
-    @Column(name = "points", columnDefinition = "geometry", insertable = false, updatable = false)
+    @Column(name = "points", columnDefinition = "geometry")
     private Object points;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_entreprise", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_entreprise")
     private Entreprise idEntreprise;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_type_signalement")
+    private TypeSignalement idTypeSignalement;
 
     @ColumnDefault("1")
     @Column(name = "version")
@@ -43,13 +46,13 @@ public class Signalement {
 
     @ColumnDefault("now()")
     @Column(name = "date_creation")
-    private Instant dateCreation;
+    private LocalDateTime dateCreation;
 
     @Column(name = "date_mis_a_jour")
-    private Instant dateMisAJour;
+    private LocalDateTime dateMisAJour;
 
     @Column(name = "date_suppression")
-    private Instant dateSuppression;
+    private LocalDateTime dateSuppression;
 
 
 }

@@ -10,20 +10,20 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "historique_statut_signalement")
-public class HistoriqueStatutSignalement {
+@Table(name = "roles_utilisateur")
+public class RoleUtilisateur {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_signalement", nullable = false)
-    private Signalement idSignalement;
+    @JoinColumn(name = "id_utilisateur", nullable = false)
+    private Utilisateur idUtilisateur;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_statut_signalement", nullable = false)
-    private StatutSignalement idStatutSignalement;
+    @JoinColumn(name = "id_role", nullable = false)
+    private Role idRole;
 
     @ColumnDefault("now()")
     @Column(name = "date_creation")

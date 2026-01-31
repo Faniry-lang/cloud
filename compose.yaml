@@ -1,9 +1,0 @@
-services:
-  postgres:
-    build: build
-    environment:
-      - 'POSTGRES_DB=projet_cloud_s5'
-      - 'POSTGRES_PASSWORD=postgres'
-      - 'POSTGRES_USER=postgres'
-    ports:
-      - '5433:5432'

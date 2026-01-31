@@ -7,7 +7,8 @@ import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -29,18 +30,19 @@ public class Journal {
     private String operation;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "donnees", columnDefinition = "jsonb")
-    private String donnees;
+    @Column(name = "donnees")
+    private Map<String, Object> donnees;
 
     @Column(name = "version")
     private Integer version;
 
     @ColumnDefault("now()")
     @Column(name = "date_creation")
-    private Instant dateCreation;
+    private LocalDateTime dateCreation;
 
     @ColumnDefault("false")
     @Column(name = "synchronise")
     private Boolean synchronise;
+
 
 }

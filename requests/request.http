@@ -1,0 +1,4 @@
+### GET all signalements from Firebase
+GET http://localhost:8080/api/firebase/signalements
+Accept: application/json
+

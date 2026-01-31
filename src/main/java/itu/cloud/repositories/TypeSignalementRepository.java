@@ -1,9 +1,9 @@
 package itu.cloud.repositories;
 
-import itu.cloud.entities.Entreprise;
+import itu.cloud.entities.TypeSignalement;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface EntrepriseRepository extends JpaRepository<Entreprise, Integer> {
+public interface TypeSignalementRepository extends JpaRepository<TypeSignalement, Integer> {
 }
