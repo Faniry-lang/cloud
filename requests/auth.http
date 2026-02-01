@@ -7,28 +7,90 @@ Accept: application/json
 GET http://127.0.0.1:8080/auth/mode
 Accept: application/json
 
-### Register - Inscription d'un nouvel utilisateur
-### ONLINE: Cree dans Firebase Auth + Firestore
-### OFFLINE: Cree dans PostgreSQL local
-POST http://127.0.0.1:8080/auth/register
+### Register - Inscription d'un nouvel utilisateur (Mode Online avec Firebase)
+POST http://localhost:8080/api/auth/register
 Content-Type: application/json
 
 {
-  "email": "nickfury@gmail.com",
-  "password": "nickfury",
-  "nom": "nick"
+  "email": "nouveau@gmail.com",
+  "password": "password123",
+  "nom": "Nouveau Utilisateur",
+  "role": "MANAGER",
+  "isOnline": true
 }
 
-### Login - Connexion utilisateur
-### ONLINE: Firebase Auth
-### OFFLINE: PostgreSQL local
-POST http://127.0.0.1:8080/auth/login
+### Register - Inscription d'un nouvel utilisateur (Mode Offline avec base de données locale)
+POST http://localhost:8080/api/auth/register
 Content-Type: application/json
 
 {
-  "email": "ranaivosonf647@gmail.com",
-  "password": "ranaivopromail"
+  "email": "local@example.com",
+  "password": "password123",
+  "nom": "Utilisateur Local",
+  "role": "MANAGER_WEB",
+  "isOnline": false
 }
+
+### Register - Test avec role invalide (doit échouer)
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "invalid@example.com",
+  "password": "password123",
+  "nom": "Test Invalide",
+  "role": "ADMIN",
+  "isOnline": false
+}
+
+### Register - Inscription USER_MOBILE (autorisé pour inscription)
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "mobile@example.com",
+  "password": "password123",
+  "nom": "Utilisateur Mobile",
+  "role": "USER_MOBILE",
+  "isOnline": false
+}
+
+### Login - Connexion utilisateur (Mode Online avec Firebase)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "data": {
+    "email": "ranaivosonf647@gmail.com",
+    "password": "ranaivopromail"
+  },
+  "isOnline": true
+}
+
+### Login - Connexion utilisateur (Mode Offline avec base de données locale)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "data": {
+    "email": "test@example.com",
+    "password": "password123"
+  },
+  "isOnline": false
+}
+
+### Obtenir tous les utilisateurs
+GET http://localhost:8080/api/manager/user/all
+Accept: application/json
+
+### Obtenir tous les utilisateurs bloqués
+GET http://localhost:8080/api/manager/user/blocked
+Accept: application/json
+
+### Débloquer un utilisateur
+POST http://localhost:8080/api/manager/user/unblock/DOCUMENT_ID_ICI
+Content-Type: application/json
+
 
 ### Login - Connexion avec compte Firebase existant
 POST http://127.0.0.1:8080/auth/login

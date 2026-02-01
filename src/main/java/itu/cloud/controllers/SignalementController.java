@@ -13,11 +13,11 @@ import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequestMapping("/api/firebase/signalements")
-public class SignalementFirebaseController {
+public class SignalementController {
 
     private final SignalementFirebaseService signalementFirebaseService;
 
-    public SignalementFirebaseController(SignalementFirebaseService signalementFirebaseService) {
+    public SignalementController(SignalementFirebaseService signalementFirebaseService) {
         this.signalementFirebaseService = signalementFirebaseService;
     }
 

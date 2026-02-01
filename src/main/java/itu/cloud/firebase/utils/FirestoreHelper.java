@@ -1,6 +1,7 @@
 package itu.cloud.firebase.utils;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import lombok.extern.slf4j.Slf4j;
 
@@ -12,7 +13,7 @@ import java.util.Map;
 @Slf4j
 public class FirestoreHelper {
 
-    public static <T> T convert(QueryDocumentSnapshot doc, Class<T> clazz) {
+    public static <T> T convert(DocumentSnapshot doc, Class<T> clazz) {
         try {
             T instance = clazz.getDeclaredConstructor().newInstance();
             Map<String, Object> data = doc.getData();
@@ -20,6 +21,7 @@ public class FirestoreHelper {
             for (Field field : clazz.getDeclaredFields()) {
                 field.setAccessible(true);
                 String fieldName = field.getName();
+                assert data != null;
                 Object value = data.get(fieldName);
 
                 if (value == null) continue;

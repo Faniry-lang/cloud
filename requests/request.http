@@ -2,3 +2,54 @@
 GET http://localhost:8080/api/firebase/signalements
 Accept: application/json
 
+### POST for login
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "data": {
+    "email": "ranaivosonf647@gmail.com",
+    "password": "br"
+  },
+  "isOnline": true
+}
+
+### GET all utilisateurs from Firebase
+GET http://localhost:8080/api/manager/user/all
+Accept: application/json
+
+### Débloquer un utilisateur
+POST http://localhost:8080/api/manager/user/unblock/1521819639
+Content-Type: application/json
+
+### Obtenir tous les utilisateurs bloqués
+GET http://localhost:8080/api/manager/user/blocked
+Accept: application/json
+
+### Register - Inscription d'un nouvel utilisateur (Mode Online avec Firebase)
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "data": {
+    "email": "nouveau@gmail.com",
+    "password": "password123",
+    "nom": "Nouveau Utilisateur",
+    "role": "MANAGER"
+  },
+  "isOnline": true
+}
+
+### Register - Inscription d'un nouvel utilisateur (Mode Offline avec base de données locale)
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "data": {
+    "email": "local@example.com",
+    "password": "password123",
+    "nom": "Utilisateur Local",
+    "role": "MANAGER_WEB"
+  },
+  "isOnline": false
+}
