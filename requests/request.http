@@ -1,5 +1,5 @@
-### GET all signalements from Firebase
-GET http://localhost:8080/api/firebase/signalements
+### GET all signalements from PostgreSQL (nouveau endpoint)
+GET http://localhost:8080/api/signalements
 Accept: application/json
 
 ### POST for login
@@ -14,19 +14,19 @@ Content-Type: application/json
   "isOnline": true
 }
 
-### GET all utilisateurs from Firebase
+### GET all utilisateurs from PostgreSQL
 GET http://localhost:8080/api/manager/user/all
 Accept: application/json
 
-### Débloquer un utilisateur
-POST http://localhost:8080/api/manager/user/unblock/1521819639
+### Débloquer un utilisateur (avec ID PostgreSQL)
+POST http://localhost:8080/api/manager/user/unblock/1
 Content-Type: application/json
 
 ### Obtenir tous les utilisateurs bloqués
 GET http://localhost:8080/api/manager/user/blocked
 Accept: application/json
 
-### Register - Inscription d'un nouvel utilisateur (Mode Online avec Firebase)
+### Register - Inscription (toujours offline maintenant)
 POST http://localhost:8080/api/auth/register
 Content-Type: application/json
 
@@ -36,20 +36,48 @@ Content-Type: application/json
     "password": "password123",
     "nom": "Nouveau Utilisateur",
     "role": "MANAGER"
-  },
-  "isOnline": true
+  }
 }
 
-### Register - Inscription d'un nouvel utilisateur (Mode Offline avec base de données locale)
-POST http://localhost:8080/api/auth/register
+### Synchronisation Pull - Récupérer les signalements depuis Firestore
+POST http://localhost:8080/api/sync/pull
 Content-Type: application/json
 
+### Synchronisation Push - Envoyer les journaux vers Firestore
+POST http://localhost:8080/api/sync/push
+Content-Type: application/json
+
+### Changer le statut d'un signalement (Manager)
+PUT http://localhost:8080/api/signalements/manager/change-status/1/2
+Content-Type: application/json
+
+### Changer le statut d'un signalement vers TERMINE
+PUT http://localhost:8080/api/signalements/manager/change-status/1/3
+Content-Type: application/json
+
+### Obtenir tous les paramètres (PROTÉGÉ - nécessite token)
+GET http://localhost:8080/api/parametres
+Authorization: Bearer VOTRE_TOKEN_ICI
+
+### Obtenir un paramètre par ID (PROTÉGÉ - nécessite token)
+GET http://localhost:8080/api/parametres/1
+Authorization: Bearer VOTRE_TOKEN_ICI
+
+### Modifier un paramètre (PROTÉGÉ - nécessite token)
+PUT http://localhost:8080/api/parametres/1
+Content-Type: application/json
+Authorization: Bearer VOTRE_TOKEN_ICI
+
 {
-  "data": {
-    "email": "local@example.com",
-    "password": "password123",
-    "nom": "Utilisateur Local",
-    "role": "MANAGER_WEB"
-  },
-  "isOnline": false
+  "valeur": "10"
 }
+
+### Modifier SESSION_DURATION_MINUTES (PROTÉGÉ - nécessite token)
+PUT http://localhost:8080/api/parametres/5
+Content-Type: application/json
+Authorization: Bearer VOTRE_TOKEN_ICI
+
+{
+  "valeur": "120"
+}
+

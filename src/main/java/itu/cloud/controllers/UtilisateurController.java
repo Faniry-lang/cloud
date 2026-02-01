@@ -1,40 +1,63 @@
 package itu.cloud.controllers;
 
 import itu.cloud.collections.UtilisateurCollection;
+import itu.cloud.entities.Utilisateur;
 import itu.cloud.firebase.services.UtilisateurFirebaseService;
+import itu.cloud.repositories.UtilisateurRepository;
+import itu.cloud.service.JournalService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequestMapping("/api/manager/user")
 public class UtilisateurController {
 
     private final UtilisateurFirebaseService utilisateurFirebaseService;
+    private final UtilisateurRepository utilisateurRepository;
+    private final JournalService journalService;
 
-    public UtilisateurController(UtilisateurFirebaseService utilisateurFirebaseService) {
+    public UtilisateurController(UtilisateurFirebaseService utilisateurFirebaseService,
+                                UtilisateurRepository utilisateurRepository,
+                                JournalService journalService) {
         this.utilisateurFirebaseService = utilisateurFirebaseService;
+        this.utilisateurRepository = utilisateurRepository;
+        this.journalService = journalService;
     }
 
     @GetMapping("/all")
-    public List<UtilisateurCollection> getAllUtilisateurs() throws ExecutionException, InterruptedException {
-        return this.utilisateurFirebaseService.find(null);
+    public List<UtilisateurCollection> getAllUtilisateurs() {
+        List<Utilisateur> utilisateurs = utilisateurRepository.findAll();
+        List<UtilisateurCollection> utilisateurCollections = new ArrayList<>();
+
+        for (Utilisateur utilisateur : utilisateurs) {
+            utilisateurCollections.add(convertToCollection(utilisateur));
+        }
+
+        return utilisateurCollections;
     }
 
     @GetMapping("/blocked")
     public ResponseEntity<?> getAllBlockedUsers() {
         try {
-            List<UtilisateurCollection> blockedUsers = utilisateurFirebaseService.getAllBlockedUsers();
+            List<Utilisateur> blockedUsers = utilisateurRepository.findBlockedUsers(LocalDateTime.now());
+            List<UtilisateurCollection> utilisateurCollections = new ArrayList<>();
+
+            for (Utilisateur utilisateur : blockedUsers) {
+                utilisateurCollections.add(convertToCollection(utilisateur));
+            }
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("count", blockedUsers.size());
-            response.put("data", blockedUsers);
+            response.put("count", utilisateurCollections.size());
+            response.put("data", utilisateurCollections);
 
             return ResponseEntity.ok(response);
 
@@ -45,38 +68,66 @@ public class UtilisateurController {
         }
     }
 
-    @PostMapping("/unblock/{documentId}")
-    public ResponseEntity<?> unblockUser(@PathVariable String documentId) {
+    @PostMapping("/unblock/{userId}")
+    public ResponseEntity<?> unblockUser(@PathVariable Integer userId) {
         try {
-            if (documentId == null || documentId.isEmpty()) {
+            if (userId == null) {
                 return ResponseEntity
                         .badRequest()
-                        .body(createErrorResponse("L'ID du document est requis"));
+                        .body(createErrorResponse("L'ID de l'utilisateur est requis"));
             }
 
-            List<UtilisateurCollection> utilisateurs = utilisateurFirebaseService.find(documentId);
-
-            if (utilisateurs == null || utilisateurs.isEmpty()) {
-                return ResponseEntity
-                        .status(HttpStatus.NOT_FOUND)
-                        .body(createErrorResponse("Utilisateur non trouvé"));
-            }
-
-            UtilisateurCollection utilisateur = utilisateurs.get(0);
+            Utilisateur utilisateur = utilisateurRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
             utilisateur.setTentativesEchouees(0);
             utilisateur.setBloqueJusqua(null);
             utilisateur.setActif(true);
+            utilisateur.setDateMisAJour(LocalDateTime.now());
 
-            UtilisateurCollection updatedUser = utilisateurFirebaseService.update(documentId, utilisateur);
+            Utilisateur updatedUser = utilisateurRepository.save(utilisateur);
 
-            return ResponseEntity.ok(createSuccessResponse(updatedUser, "Utilisateur débloqué avec succès"));
+            UtilisateurCollection utilisateurCollection = convertToCollection(updatedUser);
+            journalService.journaliser(
+                "UtilisateurCollection",
+                "UPDATE",
+                updatedUser.getDocId(),
+                utilisateurCollection,
+                updatedUser.getVersion()
+            );
+
+            return ResponseEntity.ok(createSuccessResponse(utilisateurCollection, "Utilisateur débloqué avec succès"));
 
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Erreur lors du déblocage: " + e.getMessage()));
         }
+    }
+
+    private UtilisateurCollection convertToCollection(Utilisateur utilisateur) {
+        UtilisateurCollection collection = new UtilisateurCollection();
+        collection.setEmail(utilisateur.getEmail());
+        collection.setNom(utilisateur.getNom());
+        collection.setFirebaseUid(utilisateur.getFirebaseUid());
+        collection.setActif(utilisateur.getActif() != null ? utilisateur.getActif() : false);
+        collection.setTentativesEchouees(utilisateur.getTentativesEchouees() != null ? utilisateur.getTentativesEchouees() : 0);
+        collection.setVersion(utilisateur.getVersion());
+        collection.setId(utilisateur.getId());
+        collection.setSynchronise(false);
+
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
+        if (utilisateur.getBloqueJusqua() != null) {
+            collection.setBloqueJusqua(utilisateur.getBloqueJusqua().format(formatter));
+        }
+        if (utilisateur.getDateCreation() != null) {
+            collection.setDateCreation(utilisateur.getDateCreation().format(formatter));
+        }
+        if (utilisateur.getDateMisAJour() != null) {
+            collection.setDateMiseAJour(utilisateur.getDateMisAJour().format(formatter));
+        }
+
+        return collection;
     }
 
     private Map<String, Object> createSuccessResponse(UtilisateurCollection utilisateur, String message) {

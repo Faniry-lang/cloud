@@ -8,7 +8,8 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class SignalementCollection extends FirestoreCollection implements Serializable {
-     Double budget;
+    Integer postgres_id;
+    Double budget;
      String dateSuppression;
     String dateCreation;
      String dateMisAJour;

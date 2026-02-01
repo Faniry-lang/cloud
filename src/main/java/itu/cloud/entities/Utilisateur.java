@@ -26,8 +26,13 @@ public class Utilisateur {
     @Column(name = "mot_de_passe_hash", length = Integer.MAX_VALUE)
     private String motDePasseHash;
 
+    // ty le uid ao am authentification
     @Column(name = "firebase_uid", length = 128)
     private String firebaseUid;
+
+    // ity ilay id anle document ao am firestore
+    @Column(name ="doc_id", length = 128)
+    private String docId;
 
     @ColumnDefault("0")
     @Column(name = "tentatives_echouees")

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
+import org.locationtech.jts.geom.Point;
 
 import java.time.LocalDateTime;
 
@@ -29,8 +30,8 @@ public class Signalement {
     @Column(name = "budget")
     private double budget;
 
-    @Column(name = "points", columnDefinition = "geometry")
-    private Object points;
+    @Column(name = "points", columnDefinition = "geometry(Point,4326)")
+    private Point points;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_entreprise")

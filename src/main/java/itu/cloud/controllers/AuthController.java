@@ -25,7 +25,6 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest registerRequest) {
         try {
-            // Validation des données
             if (registerRequest.getData() == null) {
                 return ResponseEntity
                         .badRequest()
@@ -33,8 +32,6 @@ public class AuthController {
             }
 
             RegisterRequest.RegisterData data = registerRequest.getData();
-
-            // Validation des paramètres
             if (data.getEmail() == null || data.getEmail().isEmpty()) {
                 return ResponseEntity
                         .badRequest()
@@ -59,7 +56,6 @@ public class AuthController {
                         .body(createErrorResponse("Le role est requis"));
             }
 
-            // Inscription
             UtilisateurCollection utilisateur = authService.register(registerRequest);
 
             return ResponseEntity

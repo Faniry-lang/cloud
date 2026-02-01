@@ -1,0 +1,61 @@
+### Test des routes publiques
+
+### 1. GET signalements (PUBLIC - doit fonctionner sans token)
+GET http://localhost:8080/api/signalements
+Accept: application/json
+
+### 2. Login (PUBLIC - doit fonctionner sans token)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "data": {
+    "email": "ranaivosonf647@gmail.com",
+    "password": "br"
+  },
+  "isOnline": false
+}
+
+### 3. Register (PUBLIC - doit fonctionner sans token)
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "data": {
+    "email": "test@example.com",
+    "password": "password123",
+    "nom": "Test User",
+    "role": "MANAGER"
+  }
+}
+
+### Test des routes protégées
+
+### 4. GET utilisateurs (PROTÉGÉ - doit échouer sans token)
+GET http://localhost:8080/api/manager/user/all
+Accept: application/json
+
+### 5. GET utilisateurs (PROTÉGÉ - doit fonctionner avec token valide)
+GET http://localhost:8080/api/manager/user/all
+Accept: application/json
+Authorization: Bearer VOTRE_TOKEN_ICI
+
+### 6. Débloquer utilisateur (PROTÉGÉ - doit fonctionner avec token valide)
+POST http://localhost:8080/api/manager/user/unblock/1
+Content-Type: application/json
+Authorization: Bearer VOTRE_TOKEN_ICI
+
+### 7. Change status signalement (PROTÉGÉ - doit fonctionner avec token valide)
+PUT http://localhost:8080/api/signalements/manager/change-status/1/2
+Content-Type: application/json
+Authorization: Bearer VOTRE_TOKEN_ICI
+
+### 8. Sync pull (PROTÉGÉ - doit fonctionner avec token valide)
+POST http://localhost:8080/api/sync/pull
+Content-Type: application/json
+Authorization: Bearer VOTRE_TOKEN_ICI
+
+### 9. Sync push (PROTÉGÉ - doit fonctionner avec token valide)
+POST http://localhost:8080/api/sync/push
+Content-Type: application/json
+Authorization: Bearer VOTRE_TOKEN_ICI

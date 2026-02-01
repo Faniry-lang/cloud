@@ -21,7 +21,7 @@ public class Journal {
     private Integer id;
 
     @Column(name = "id_entite")
-    private Integer idEntite;
+    private String idEntite;
 
     @Column(name = "type_entite", length = Integer.MAX_VALUE)
     private String typeEntite;

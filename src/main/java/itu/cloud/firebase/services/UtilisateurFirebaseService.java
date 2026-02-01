@@ -3,10 +3,12 @@ package itu.cloud.firebase.services;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QuerySnapshot;
 import itu.cloud.collections.UtilisateurCollection;
+import itu.cloud.entities.Journal;
 import itu.cloud.firebase.utils.FirestoreHelper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -19,6 +21,51 @@ public class UtilisateurFirebaseService extends FirestoreCollectionService<Utili
     public UtilisateurFirebaseService(FirebaseService firebaseService) {
         super(firebaseService, "utilisateurs", UtilisateurCollection.class);
         this.firebaseService = firebaseService;
+    }
+
+    @Override
+    public UtilisateurCollection saveFromJournal(Journal journal) throws Exception {
+        if ("INSERT".equals(journal.getOperation())) {
+            Map<String, Object> donnees = journal.getDonnees();
+
+            Integer id = (Integer) donnees.get("id");
+            String email = (String) donnees.get("email");
+            String nom = (String) donnees.get("nom");
+            String password = (String) donnees.get("password");
+            String dateCreation = (String) donnees.get("dateCreation");
+            String dateMisAJour = (String) donnees.get("dateMisAJour");
+            String role = (String) donnees.get("role");
+            Integer tentativesEchouees = 0;
+
+            Map<String, String> firebaseUserData = firebaseService.registerWithFirebase(
+                email,
+                password,
+                nom
+            );
+
+            donnees.put("firebaseUid", firebaseUserData.get("localId"));
+            donnees.put("email", firebaseUserData.get("email"));
+            donnees.put("nom", firebaseUserData.get("displayName"));
+
+            UtilisateurCollection utilisateurCollection = new UtilisateurCollection();
+            utilisateurCollection.setId(id);
+            utilisateurCollection.setEmail(email);
+            utilisateurCollection.setFirebaseUid((String) donnees.get("firebaseUid"));
+            utilisateurCollection.setNom(nom);
+            utilisateurCollection.setRole(role);
+            utilisateurCollection.setTentativesEchouees(tentativesEchouees);
+            utilisateurCollection.setDateCreation(dateCreation);
+            utilisateurCollection.setDateMiseAJour(dateMisAJour);
+            utilisateurCollection.setSynchronise(true);
+            utilisateurCollection.setActif(true);
+
+            return this.save(utilisateurCollection);
+//            journal.setDonnees(donnees);
+//            return super.saveFromJournal(journal);
+
+        } else {
+            return super.saveFromJournal(journal);
+        }
     }
 
     public List<UtilisateurCollection> getAllBlockedUsers() throws ExecutionException, InterruptedException {

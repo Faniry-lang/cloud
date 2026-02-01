@@ -10,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -94,8 +95,11 @@ public class FirebaseService {
 
             return userData;
 
+        } catch (HttpClientErrorException e) {
+
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Erreur d'authentification Firebase", e);
+            throw new RuntimeException("Erreur d'authentification Firebase: " + e.getMessage(), e);
         }
     }
 }

@@ -49,6 +49,12 @@ public class FirestoreHelper {
         }
 
         if (value instanceof Number number) {
+            if (targetType.equals(Double.class) || targetType.equals(double.class)) {
+                return number.doubleValue();
+            }
+            if (targetType.equals(Float.class) || targetType.equals(float.class)) {
+                return number.floatValue();
+            }
             if (targetType.equals(Integer.class) || targetType.equals(int.class)) {
                 if (Double.isNaN(number.doubleValue())) return null;
                 return number.intValue();
@@ -56,12 +62,6 @@ public class FirestoreHelper {
             if (targetType.equals(Long.class) || targetType.equals(long.class)) {
                 if (Double.isNaN(number.doubleValue())) return null;
                 return number.longValue();
-            }
-            if (targetType.equals(Double.class) || targetType.equals(double.class)) {
-                return number.doubleValue();
-            }
-            if (targetType.equals(Float.class) || targetType.equals(float.class)) {
-                return number.floatValue();
             }
         }
 

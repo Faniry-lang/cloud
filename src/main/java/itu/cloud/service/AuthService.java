@@ -4,6 +4,7 @@ import itu.cloud.collections.UtilisateurCollection;
 import itu.cloud.dto.AuthDTO;
 import itu.cloud.dto.LoginRequest;
 import itu.cloud.dto.RegisterRequest;
+import itu.cloud.entities.Utilisateur;
 import itu.cloud.firebase.services.FirebaseService;
 import itu.cloud.firebase.services.UtilisateurFirebaseService;
 import itu.cloud.security.JwtUtil;
@@ -12,6 +13,7 @@ import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -25,19 +27,22 @@ public class AuthService {
     private final UtilisateurService utilisateurService;
     private final UtilisateurFirebaseService utilisateurFirebaseService;
     private final RoleService roleService;
+    private final JournalService journalService;
 
     public AuthService(JwtUtil jwtUtil,
                       ParametreService parametreService,
                       FirebaseService firebaseService,
                       UtilisateurService utilisateurService,
                       UtilisateurFirebaseService utilisateurFirebaseService,
-                      RoleService roleService) {
+                      RoleService roleService,
+                      JournalService journalService) {
         this.jwtUtil = jwtUtil;
         this.parametreService = parametreService;
         this.firebaseService = firebaseService;
         this.utilisateurService = utilisateurService;
         this.utilisateurFirebaseService = utilisateurFirebaseService;
         this.roleService = roleService;
+        this.journalService = journalService;
     }
 
     public UtilisateurCollection register(RegisterRequest registerRequest) {
@@ -56,58 +61,48 @@ public class AuthService {
                 throw new RuntimeException("Role invalide");
             }
 
-            Map<String, String> userData;
+            Map<String, String> userData = utilisateurService.registerWithDatabase(
+                data.getEmail(),
+                data.getPassword(),
+                data.getNom(),
+                data.getRole()
+            );
+
             UtilisateurCollection utilisateur = new UtilisateurCollection();
+            utilisateur.setEmail(userData.get("email"));
+            utilisateur.setNom(userData.get("displayName"));
+            utilisateur.setId(Integer.valueOf(userData.get("postgres_id")));
+            utilisateur.setRole(userData.get("role"));
+            utilisateur.setActif(false);
+            utilisateur.setTentativesEchouees(0);
+            utilisateur.setVersion(1);
+            utilisateur.setSynchronise(false);
 
-            if (registerRequest.getIsOnline() != null && registerRequest.getIsOnline()) {
-                userData = firebaseService.registerWithFirebase(
-                    data.getEmail(),
-                    data.getPassword(),
-                    data.getNom()
-                );
+            DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
+            String now = LocalDateTime.now().format(formatter);
+            utilisateur.setDateCreation(now);
+            utilisateur.setDateMiseAJour(now);
+            
+            Map<String, Object> donneesAvecPassword = new HashMap<>();
+            donneesAvecPassword.put("email", utilisateur.getEmail());
+            donneesAvecPassword.put("nom", utilisateur.getNom());
+            donneesAvecPassword.put("id", utilisateur.getId());
+            donneesAvecPassword.put("role", utilisateur.getRole());
+            donneesAvecPassword.put("actif", utilisateur.isActif());
+            donneesAvecPassword.put("tentativesEchouees", utilisateur.getTentativesEchouees());
+            donneesAvecPassword.put("version", utilisateur.getVersion());
+            donneesAvecPassword.put("synchronise", utilisateur.isSynchronise());
+            donneesAvecPassword.put("dateCreation", utilisateur.getDateCreation());
+            donneesAvecPassword.put("dateMiseAJour", utilisateur.getDateMiseAJour());
+            donneesAvecPassword.put("password", data.getPassword()); 
 
-                utilisateur.setEmail(userData.get("email"));
-                utilisateur.setNom(userData.get("displayName"));
-                utilisateur.setFirebaseUid(userData.get("localId"));
-                utilisateur.setRole(data.getRole());
-                utilisateur.setActif(true);
-                utilisateur.setTentativesEchouees(0);
-                utilisateur.setVersion(1);
-                utilisateur.setSynchronise(true);
-
-                DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
-                String now = LocalDateTime.now().format(formatter);
-                utilisateur.setDateCreation(now);
-                utilisateur.setDateMiseAJour(now);
-
-                try {
-                    utilisateurFirebaseService.save(utilisateur);
-                } catch (ExecutionException | InterruptedException e) {
-                    throw new RuntimeException("Erreur lors de la sauvegarde dans Firestore: " + e.getMessage(), e);
-                }
-
-            } else {
-                userData = utilisateurService.registerWithDatabase(
-                    data.getEmail(),
-                    data.getPassword(),
-                    data.getNom(),
-                    data.getRole()
-                );
-
-                utilisateur.setEmail(userData.get("email"));
-                utilisateur.setNom(userData.get("displayName"));
-                utilisateur.setFirebaseUid(userData.get("localId"));
-                utilisateur.setRole(userData.get("role"));
-                utilisateur.setActif(true);
-                utilisateur.setTentativesEchouees(0);
-                utilisateur.setVersion(1);
-                utilisateur.setSynchronise(false);
-
-                DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
-                String now = LocalDateTime.now().format(formatter);
-                utilisateur.setDateCreation(now);
-                utilisateur.setDateMiseAJour(now);
-            }
+            journalService.journaliser(
+                "UtilisateurCollection",
+                "INSERT",
+                null,
+                donneesAvecPassword,
+                1
+            );
 
             return utilisateur;
 
@@ -129,21 +124,55 @@ public class AuthService {
             Map<String, String> firebaseUserData;
             String userRole = null;
 
+            Optional<Utilisateur> u = this.utilisateurService.findByEmail(loginRequest.getData().getEmail());
+            if(u.isPresent()) {
+                if(u.get().getFirebaseUid() == null) {
+                    throw new RuntimeException("Le compte n'est pas encore activé");
+                }
+            } else {
+                throw new RuntimeException("Aucun compte utilisateur n'appartient à cette adresse email");
+            }
+
             if (loginRequest.getIsOnline() != null && loginRequest.getIsOnline()) {
-                firebaseUserData = firebaseService.authenticateWithFirebase(
-                    data.getEmail(),
-                    data.getPassword()
-                );
+                try {
+                    utilisateurService.checkIfBlocked(data.getEmail());
+                } catch (RuntimeException e) {
+                    throw e;
+                }
 
                 try {
-                    Optional<UtilisateurCollection> utilisateurOpt = utilisateurFirebaseService.findByEmail(data.getEmail());
-                    if (utilisateurOpt.isPresent()) {
-                        userRole = utilisateurOpt.get().getRole();
-                        System.out.println("USER ROLE");
-                        System.out.println(userRole);
+                    firebaseUserData = firebaseService.authenticateWithFirebase(
+                        data.getEmail(),
+                        data.getPassword()
+                    );
+
+                    utilisateurService.resetFailedAttemptsIfNeeded(data.getEmail());
+
+                    try {
+                        Optional<UtilisateurCollection> utilisateurOpt = utilisateurFirebaseService.findByEmail(data.getEmail());
+                        if (utilisateurOpt.isPresent()) {
+                            userRole = utilisateurOpt.get().getRole();
+                        }
+                    } catch (ExecutionException | InterruptedException e) {
+                        throw new RuntimeException("Erreur lors de la récupération du role: " + e.getMessage());
                     }
-                } catch (ExecutionException | InterruptedException e) {
-                    throw new RuntimeException("Erreur lors de la récupération du role: " + e.getMessage());
+
+                } catch (HttpClientErrorException e) {
+                    try {
+                        utilisateurService.handleFailedLoginByEmail(data.getEmail());
+                    } catch (Exception ex) {
+                        System.err.println("Erreur lors de l'incrémentation des tentatives: " + ex.getMessage());
+                    }
+                    throw new RuntimeException("Identifiants invalides");
+                } catch (RuntimeException e) {
+                    if (e.getMessage() != null && e.getMessage().contains("authentification")) {
+                        try {
+                            utilisateurService.handleFailedLoginByEmail(data.getEmail());
+                        } catch (Exception ex) {
+                            System.err.println("Erreur lors de l'incrémentation des tentatives: " + ex.getMessage());
+                        }
+                    }
+                    throw new RuntimeException("Identifiants invalides");
                 }
 
             } else {
@@ -153,7 +182,6 @@ public class AuthService {
                 );
                 userRole = firebaseUserData.get("role");
             }
-
 
             if (userRole == null || !roleService.isManagerRole(userRole)) {
                 throw new RuntimeException("Vous n'êtes pas autorisé");
@@ -172,8 +200,8 @@ public class AuthService {
                     .token(token)
                     .build();
 
-        } catch (HttpClientErrorException e) {
-            throw new RuntimeException("Identifiants invalides");
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Erreur lors de l'authentification: " + e.getMessage());
         }

@@ -17,11 +17,11 @@ public class HistoriqueStatutSignalement {
     @Column(name = "id", nullable = false)
     private Integer id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "id_signalement", nullable = false)
     private Signalement idSignalement;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "id_statut_signalement", nullable = false)
     private StatutSignalement idStatutSignalement;
 
