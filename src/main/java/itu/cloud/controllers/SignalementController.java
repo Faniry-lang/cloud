@@ -1,6 +1,7 @@
 package itu.cloud.controllers;
 
 import itu.cloud.collections.SignalementCollection;
+import itu.cloud.dto.StatistiquesTraitementDTO;
 import itu.cloud.entities.HistoriqueStatutSignalement;
 import itu.cloud.entities.Signalement;
 import itu.cloud.firebase.services.SignalementFirebaseService;
@@ -24,7 +25,8 @@ public class SignalementController {
     private final HistoriqueStatutSignalementRepository historiqueStatutSignalementRepository;
 
     public SignalementController(SignalementFirebaseService signalementFirebaseService,
-                                 SignalementRepository signalementRepository, SignalementService signalementService, HistoriqueStatutSignalementRepository historiqueStatutSignalementRepository) {
+            SignalementRepository signalementRepository, SignalementService signalementService,
+            HistoriqueStatutSignalementRepository historiqueStatutSignalementRepository) {
         this.signalementFirebaseService = signalementFirebaseService;
         this.signalementRepository = signalementRepository;
         this.signalementService = signalementService;
@@ -59,8 +61,7 @@ public class SignalementController {
                 }
             }
 
-            double progress = totalCount > 0 ?
-                ((completedCount + (inProgressCount * 0.5)) / totalCount) * 100 : 0;
+            double progress = totalCount > 0 ? ((completedCount + (inProgressCount * 0.5)) / totalCount) * 100 : 0;
 
             Map<String, Object> stats = new HashMap<>();
             stats.put("totalCount", totalCount);
@@ -83,6 +84,7 @@ public class SignalementController {
 
     @PutMapping("/manager/change-status/{signalementId}/{statusLevel}")
     public ResponseEntity<?> changeStatus(@PathVariable Integer signalementId,
+            @PathVariable Integer statusLevel) {
                                          @PathVariable Integer statusLevel,
                                          @RequestBody(required = false) Map<String, String> requestBody) {
         try {
@@ -97,12 +99,12 @@ public class SignalementController {
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException e) {
-            System.out.println("[DEBUG SignalementController.changeStatus] RuntimeException: "+e.getMessage());
+            System.out.println("[DEBUG SignalementController.changeStatus] RuntimeException: " + e.getMessage());
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
                     .body(createErrorResponse(e.getMessage()));
         } catch (Exception e) {
-            System.out.println("[DEBUG SignalementController.changeStatus] Exception: "+e.getMessage());
+            System.out.println("[DEBUG SignalementController.changeStatus] Exception: " + e.getMessage());
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Erreur lors de la mise à jour du statut: " + e.getMessage()));
@@ -118,10 +120,10 @@ public class SignalementController {
         collection.setBudget(signalement.getBudget());
         collection.setVersion(signalement.getVersion());
 
-        Optional<HistoriqueStatutSignalement> hss = this.historiqueStatutSignalementRepository.findFirstByIdSignalementOrderByDateCreationDesc(signalement);
+        Optional<HistoriqueStatutSignalement> hss = this.historiqueStatutSignalementRepository
+                .findFirstByIdSignalementOrderByDateCreationDesc(signalement);
         collection.setStatut(
-                hss.isPresent() ? hss.get().getIdStatutSignalement().getNiveau() : 1
-        );
+                hss.isPresent() ? hss.get().getIdStatutSignalement().getNiveau() : 1);
 
         if (signalement.getIdEntreprise() != null) {
             collection.setIdEntreprise(signalement.getIdEntreprise().getId());
@@ -145,7 +147,6 @@ public class SignalementController {
         if (signalement.getDateSuppression() != null) {
             collection.setDateSuppression(signalement.getDateSuppression().format(formatter));
         }
-
 
         if (signalement.getPoints() != null) {
             try {
@@ -175,5 +176,10 @@ public class SignalementController {
         response.put("success", false);
         response.put("error", message);
         return response;
+    }
+
+    @GetMapping("/stats/traitement")
+    public ResponseEntity<StatistiquesTraitementDTO> getStatistiquesTraitement() {
+        return ResponseEntity.ok(signalementService.getStatistiquesTraitement());
     }
 }
