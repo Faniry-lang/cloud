@@ -2,6 +2,7 @@ package itu.cloud.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import itu.cloud.collections.SignalementCollection;
+import itu.cloud.dto.StatistiquesTraitementDTO;
 import itu.cloud.entities.HistoriqueStatutSignalement;
 import itu.cloud.entities.Signalement;
 import itu.cloud.entities.StatutSignalement;
@@ -25,9 +26,9 @@ public class SignalementService {
     private final ObjectMapper objectMapper;
 
     public SignalementService(SignalementRepository signalementRepository,
-                             StatutSignalementRepository statutSignalementRepository,
-                             HistoriqueStatutSignalementRepository historiqueRepository,
-                             JournalService journalService) {
+            StatutSignalementRepository statutSignalementRepository,
+            HistoriqueStatutSignalementRepository historiqueRepository,
+            JournalService journalService) {
         this.signalementRepository = signalementRepository;
         this.statutSignalementRepository = statutSignalementRepository;
         this.historiqueRepository = historiqueRepository;
@@ -69,14 +70,47 @@ public class SignalementService {
         donnees.put("statut", statusLevel);
 
         journalService.journaliser(
-            "SignalementCollection",
-            "UPDATE",
-            signalement.getFirebaseUid(),
-            donnees,
-            signalement.getVersion()
-        );
+                "SignalementCollection",
+                "UPDATE",
+                signalement.getFirebaseUid(),
+                donnees,
+                signalement.getVersion());
 
         return signalementCollection;
+    }
+
+    @Transactional(readOnly = true)
+    public StatistiquesTraitementDTO getStatistiquesTraitement() {
+        Double avgSeconds = historiqueRepository.getAverageProcessingTimeInSeconds();
+        StatistiquesTraitementDTO stats = new StatistiquesTraitementDTO();
+
+        if (avgSeconds == null) {
+            stats.setDureeMoyenneSecondes(0.0);
+            stats.setDureeMoyenneLisible("Aucune donnée suffisante");
+            return stats;
+        }
+
+        stats.setDureeMoyenneSecondes(avgSeconds);
+        stats.setDureeMoyenneLisible(formatDuration(avgSeconds.longValue()));
+        return stats;
+    }
+
+    private String formatDuration(long seconds) {
+        long days = seconds / (24 * 3600);
+        long hours = (seconds % (24 * 3600)) / 3600;
+        long minutes = (seconds % 3600) / 60;
+
+        StringBuilder sb = new StringBuilder();
+        if (days > 0)
+            sb.append(days).append(" jours ");
+        if (hours > 0)
+            sb.append(hours).append(" h ");
+        if (minutes > 0)
+            sb.append(minutes).append(" min");
+
+        if (sb.isEmpty())
+            return "Moins d'une minute";
+        return sb.toString().trim();
     }
 
     private SignalementCollection convertToCollection(Signalement signalement) {
