@@ -46,8 +46,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/sync/non-sync-count").permitAll()
                         .requestMatchers("/api/ws/**").permitAll()
-                        .requestMatchers("/api/ws").permitAll()
-                        .requestMatchers("/api/signalements/stats/**").permitAll()
+                        .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception
@@ -64,9 +63,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:5173",
-            "http://127.0.0.1:5173"
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"));
