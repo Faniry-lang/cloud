@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/sync/non-sync-count").permitAll()
                         .requestMatchers("/api/ws/**").permitAll()
+                        .requestMatchers("/api/ws").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception
