@@ -14,7 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class SignalementService {
@@ -37,7 +38,7 @@ public class SignalementService {
     }
 
     @Transactional
-    public SignalementCollection changeStatus(Integer signalementId, Integer statusLevel) {
+    public SignalementCollection changeStatus(Integer signalementId, Integer statusLevel, String dateStr) {
         Signalement signalement = signalementRepository.findById(signalementId)
                 .orElseThrow(() -> new RuntimeException("Signalement non trouvé"));
         StatutSignalement statut = statutSignalementRepository.findByNiveau(statusLevel)
@@ -54,10 +55,21 @@ public class SignalementService {
                     return statutSignalementRepository.save(newStatut);
                 });
 
+        LocalDateTime dateCreation;
+        if (dateStr != null && !dateStr.isEmpty()) {
+            try {
+                dateCreation = LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_DATE_TIME);
+            } catch (Exception e) {
+                throw new RuntimeException("Format de date invalide. Utilisez le format ISO 8601 (ex: 2026-02-03T10:30:00)");
+            }
+        } else {
+            dateCreation = LocalDateTime.now();
+        }
+
         HistoriqueStatutSignalement historique = new HistoriqueStatutSignalement();
         historique.setIdSignalement(signalement);
         historique.setIdStatutSignalement(statut);
-        historique.setDateCreation(LocalDateTime.now());
+        historique.setDateCreation(dateCreation);
         historiqueRepository.save(historique);
 
         signalement.setDateMisAJour(LocalDateTime.now());

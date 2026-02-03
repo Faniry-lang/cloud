@@ -109,4 +109,3 @@ INSERT INTO parametres (nom, valeur, type, date_creation) VALUES
                                                               ('DEFAULT_STATUS', 'ACTIF', 'STRING', now()),
                                                               ('SESSION_DURATION_MINUTES', '30', 'INTEGER', now());
 
-

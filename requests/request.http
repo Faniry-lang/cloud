@@ -51,9 +51,25 @@ Content-Type: application/json
 PUT http://localhost:8080/api/signalements/manager/change-status/1/2
 Content-Type: application/json
 
+### Changer le statut d'un signalement avec une date spécifique
+PUT http://localhost:8080/api/signalements/manager/change-status/1/2
+Content-Type: application/json
+
+{
+  "date": "2026-02-01T10:30:00"
+}
+
 ### Changer le statut d'un signalement vers TERMINE
 PUT http://localhost:8080/api/signalements/manager/change-status/1/3
 Content-Type: application/json
+
+### Changer le statut vers TERMINE avec date spécifique
+PUT http://localhost:8080/api/signalements/manager/change-status/1/3
+Content-Type: application/json
+
+{
+  "date": "2026-02-02T15:45:00"
+}
 
 ### Obtenir tous les paramètres (PROTÉGÉ - nécessite token)
 GET http://localhost:8080/api/parametres

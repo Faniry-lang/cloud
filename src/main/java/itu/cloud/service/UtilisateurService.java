@@ -276,4 +276,6 @@ public class UtilisateurService extends BaseService<UtilisateurRepository, Utili
     public Optional<Utilisateur> findByEmail(String email) {
         return this.repository.findByEmail(email);
     }
+
+
 }
