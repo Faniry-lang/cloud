@@ -60,8 +60,6 @@ public class UtilisateurFirebaseService extends FirestoreCollectionService<Utili
             utilisateurCollection.setActif(true);
 
             return this.save(utilisateurCollection);
-//            journal.setDonnees(donnees);
-//            return super.saveFromJournal(journal);
 
         } else {
             return super.saveFromJournal(journal);

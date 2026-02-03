@@ -5,6 +5,7 @@ import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.*;
 import itu.cloud.collections.FirestoreCollection;
 import itu.cloud.entities.Journal;
+import itu.cloud.firebase.enums.FirestoreOperator;
 import itu.cloud.firebase.utils.FirestoreHelper;
 
 import java.lang.reflect.Field;
@@ -191,5 +192,71 @@ public abstract class FirestoreCollectionService<T extends FirestoreCollection> 
         }
     }
 
+    public List<T> findWhere(String field, FirestoreOperator operator, Object value)
+            throws ExecutionException, InterruptedException {
+
+        Firestore db = firebaseService.getDb();
+        List<T> results = new ArrayList<>();
+
+        CollectionReference colRef = db.collection(collectionName);
+        Query query;
+
+        switch (operator) {
+            case EQUALS:
+                query = colRef.whereEqualTo(field, value);
+                break;
+
+            case NOT_EQUALS:
+                query = colRef.whereNotEqualTo(field, value);
+                break;
+
+            case GREATER_THAN:
+                query = colRef.whereGreaterThan(field, value);
+                break;
+
+            case GREATER_THAN_OR_EQUAL:
+                query = colRef.whereGreaterThanOrEqualTo(field, value);
+                break;
+
+            case LESS_THAN:
+                query = colRef.whereLessThan(field, value);
+                break;
+
+            case LESS_THAN_OR_EQUAL:
+                query = colRef.whereLessThanOrEqualTo(field, value);
+                break;
+
+            case IN:
+                if (!(value instanceof List)) {
+                    throw new IllegalArgumentException("IN operator requires a List value");
+                }
+                query = colRef.whereIn(field, (List<?>) value);
+                break;
+
+            case NOT_IN:
+                if (!(value instanceof List)) {
+                    throw new IllegalArgumentException("NOT_IN operator requires a List value");
+                }
+                query = colRef.whereNotIn(field, (List<?>) value);
+                break;
+
+            case ARRAY_CONTAINS:
+                query = colRef.whereArrayContains(field, value);
+                break;
+
+            default:
+                throw new IllegalArgumentException("Unsupported Firestore operator: " + operator);
+        }
+
+        QuerySnapshot snapshot = query.get().get();
+
+        for (DocumentSnapshot doc : snapshot.getDocuments()) {
+            T entity = FirestoreHelper.convert(doc, entityClass);
+            entity.setDocId(doc.getId());
+            results.add(entity);
+        }
+
+        return results;
+    }
 }
 

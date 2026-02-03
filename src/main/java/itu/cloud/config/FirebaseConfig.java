@@ -10,7 +10,7 @@ import org.springframework.core.io.ClassPathResource;
 import java.io.IOException;
 import java.io.InputStream;
 
-@Configuration
+@Configuration("firebaseConfig")
 public class FirebaseConfig {
 
     @PostConstruct

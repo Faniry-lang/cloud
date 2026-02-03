@@ -81,3 +81,6 @@ Authorization: Bearer VOTRE_TOKEN_ICI
   "valeur": "120"
 }
 
+### Tester la liste de l'historique
+GET http://localhost:8080/api/sync/all-journal-history
+Accept: application/json

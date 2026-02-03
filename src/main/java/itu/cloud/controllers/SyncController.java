@@ -1,11 +1,13 @@
 package itu.cloud.controllers;
 
+import itu.cloud.service.JournalService;
 import itu.cloud.service.SyncService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -13,9 +15,11 @@ import java.util.Map;
 public class SyncController {
 
     private final SyncService syncService;
+    private final JournalService journalService;
 
-    public SyncController(SyncService syncService) {
+    public SyncController(SyncService syncService, JournalService journalService) {
         this.syncService = syncService;
+        this.journalService = journalService;
     }
 
     @PostMapping("/pull")
@@ -52,6 +56,40 @@ public class SyncController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("Erreur lors du push: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/non-sync-count")
+    public ResponseEntity<?> nonSyncCount() {
+        try {
+            int count = journalService.getJournalNonSync();
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "");
+            response.put("count", count);
+
+            return ResponseEntity.ok(response);
+        } catch(Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("Erreur lors du push: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/all-journal-history")
+    public ResponseEntity<?> getAllJournalHistory() {
+        try {
+            List<JournalService.HistoriqueJournal> historiqueJournals = journalService.getAllJournalHistoryUnsync();
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "");
+            response.put("histo", historiqueJournals);
+
+            return ResponseEntity.ok(response);
+        } catch(Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Erreur lors du push: " + e.getMessage()));

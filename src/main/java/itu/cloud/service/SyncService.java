@@ -6,6 +6,7 @@ import itu.cloud.entities.Journal;
 import itu.cloud.entities.Signalement;
 import itu.cloud.collections.*;
 import itu.cloud.entities.TypeSignalement;
+import itu.cloud.firebase.services.ParametreFirebaseService;
 import itu.cloud.firebase.services.SignalementFirebaseService;
 import itu.cloud.firebase.services.TypeSignalementFirebaseService;
 import itu.cloud.firebase.services.UtilisateurFirebaseService;
@@ -27,6 +28,7 @@ public class SyncService {
     private final SignalementFirebaseService signalementFirebaseService;
     private final UtilisateurFirebaseService utilisateurFirebaseService;
     private final TypeSignalementFirebaseService typeSignalementFirebaseService;
+    private final ParametreFirebaseService parametreFirebaseService;
     private final SignalementRepository signalementRepository;
     private final TypeSignalementRepository typeSignalementRepository;
     private final JournalRepository journalRepository;
@@ -36,7 +38,7 @@ public class SyncService {
 
     public SyncService(SignalementFirebaseService signalementFirebaseService,
                        UtilisateurFirebaseService utilisateurFirebaseService,
-                       TypeSignalementFirebaseService typeSignalementFirebaseService,
+                       TypeSignalementFirebaseService typeSignalementFirebaseService, ParametreFirebaseService parametreFirebaseService,
                        SignalementRepository signalementRepository,
                        TypeSignalementRepository typeSignalementRepository,
                        JournalRepository journalRepository,
@@ -44,6 +46,7 @@ public class SyncService {
         this.signalementFirebaseService = signalementFirebaseService;
         this.utilisateurFirebaseService = utilisateurFirebaseService;
         this.typeSignalementFirebaseService = typeSignalementFirebaseService;
+        this.parametreFirebaseService = parametreFirebaseService;
         this.signalementRepository = signalementRepository;
         this.typeSignalementRepository = typeSignalementRepository;
         this.journalRepository = journalRepository;
@@ -147,6 +150,10 @@ public class SyncService {
 
                     case "SignalementCollection":
                         signalementFirebaseService.saveFromJournal(journal);
+                        break;
+
+                    case "ParametreCollection":
+                        parametreFirebaseService.saveFromJournal(journal);
                         break;
 
                     default:

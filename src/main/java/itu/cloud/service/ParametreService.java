@@ -1,5 +1,6 @@
 package itu.cloud.service;
 
+import itu.cloud.collections.ParametreCollection;
 import itu.cloud.entities.Parametre;
 import itu.cloud.repositories.ParametreRepository;
 import org.springframework.stereotype.Service;
@@ -11,9 +12,11 @@ import java.util.List;
 public class ParametreService {
 
     private final ParametreRepository parametreRepository;
+    private final JournalService journalService;
 
-    public ParametreService(ParametreRepository parametreRepository) {
+    public ParametreService(ParametreRepository parametreRepository, JournalService journalService) {
         this.parametreRepository = parametreRepository;
+        this.journalService = journalService;
     }
 
     public String getValeur(String nom) {
@@ -42,6 +45,21 @@ public class ParametreService {
 
         parametre.setValeur(nouvelleValeur);
         parametre.setDateMisAJour(LocalDateTime.now());
+
+        ParametreCollection pc = new ParametreCollection();
+        pc.setId(parametre.getId());
+        pc.setType(parametre.getType());
+        pc.setNom(parametre.getNom());
+        pc.setValeur(parametre.getValeur());
+        pc.setDateMisAJour(LocalDateTime.now().toString());
+
+        journalService.journaliser(
+                "ParametreCollection",
+                "UPDATE",
+                parametre.getId().toString(),
+                pc,
+                1
+        );
 
         return parametreRepository.save(parametre);
     }

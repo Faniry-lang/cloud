@@ -16,6 +16,8 @@ import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.google.firebase.cloud.FirestoreClient.getFirestore;
+
 @Service
 public class FirebaseService {
 
@@ -37,7 +39,7 @@ public class FirebaseService {
     }
 
     public Firestore getDb() {
-        return FirestoreClient.getFirestore();
+        return getFirestore();
     }
 
     public Map<String, String> registerWithFirebase(String email, String password, String displayName) {
@@ -100,6 +102,17 @@ public class FirebaseService {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException("Erreur d'authentification Firebase: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean isAvailable() {
+        try {
+            Firestore db = getFirestore();
+            db.collection("_health_check").document("ping").get().get();
+            return true;
+        } catch (Exception e) {
+            System.out.println("[Firebase availability]: unavailable, "+e.getMessage());
+            return false;
         }
     }
 }

@@ -18,9 +18,8 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
-public class UtilisateurService {
+public class UtilisateurService extends BaseService<UtilisateurRepository, Utilisateur, Integer> {
 
-    private final UtilisateurRepository utilisateurRepository;
     private final ParametreService parametreService;
     private final PasswordEncoder passwordEncoder;
     private final RoleService roleService;
@@ -35,7 +34,7 @@ public class UtilisateurService {
                               RoleUtilisateurRepository roleUtilisateurRepository,
                               UtilisateurFirebaseService utilisateurFirebaseService,
                               JournalService journalService) {
-        this.utilisateurRepository = utilisateurRepository;
+        this.repository = utilisateurRepository;
         this.parametreService = parametreService;
         this.passwordEncoder = passwordEncoder;
         this.roleService = roleService;
@@ -44,8 +43,8 @@ public class UtilisateurService {
         this.journalService = journalService;
     }
 
-    public Map<String, String> registerWithDatabase(String email, String password, String nom, String roleName) {
-        if (utilisateurRepository.findByEmail(email).isPresent()) {
+    public Map<String, String> registerWithDatabase(String email, String encodedPassword, String nom, String roleName) {
+        if (repository.findByEmail(email).isPresent()) {
             throw new RuntimeException("Un utilisateur avec cet email existe déjà");
         }
 
@@ -54,13 +53,13 @@ public class UtilisateurService {
         Utilisateur utilisateur = new Utilisateur();
         utilisateur.setEmail(email);
         utilisateur.setNom(nom != null ? nom : email);
-        utilisateur.setMotDePasseHash(passwordEncoder.encode(password));
+        utilisateur.setMotDePasseHash(encodedPassword);
         utilisateur.setActif(true);
         utilisateur.setTentativesEchouees(0);
         utilisateur.setVersion(1);
         utilisateur.setDateCreation(LocalDateTime.now());
 
-        Utilisateur savedUser = utilisateurRepository.save(utilisateur);
+        Utilisateur savedUser = repository.save(utilisateur);
 
         RoleUtilisateur roleUtilisateur = new RoleUtilisateur();
         roleUtilisateur.setIdUtilisateur(savedUser);
@@ -78,7 +77,7 @@ public class UtilisateurService {
     }
 
     public Map<String, String> authenticateWithDatabase(String email, String password) {
-        Utilisateur utilisateur = utilisateurRepository.findByEmail(email)
+        Utilisateur utilisateur = repository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
         if (utilisateur.getFirebaseUid() == null) {
@@ -118,7 +117,7 @@ public class UtilisateurService {
     }
 
     public void checkIfBlocked(String email) {
-        Utilisateur utilisateur = utilisateurRepository.findByEmail(email)
+        Utilisateur utilisateur = repository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
         if (utilisateur.getBloqueJusqua() != null &&
@@ -132,18 +131,18 @@ public class UtilisateurService {
     }
 
     public void handleFailedLoginByEmail(String email) {
-        Utilisateur utilisateur = utilisateurRepository.findByEmail(email)
+        Utilisateur utilisateur = repository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
         handleFailedLogin(utilisateur);
     }
 
     public void resetFailedAttemptsIfNeeded(String email) {
-        Utilisateur utilisateur = utilisateurRepository.findByEmail(email).orElse(null);
+        Utilisateur utilisateur = repository.findByEmail(email).orElse(null);
         if (utilisateur != null && utilisateur.getTentativesEchouees() != null && utilisateur.getTentativesEchouees() > 0) {
             utilisateur.setTentativesEchouees(0);
             utilisateur.setBloqueJusqua(null);
             utilisateur.setDateMisAJour(LocalDateTime.now());
-            Utilisateur savedUser = utilisateurRepository.save(utilisateur);
+            Utilisateur savedUser = repository.save(utilisateur);
 
             UtilisateurCollection utilisateurCollection = convertToCollection(savedUser);
 
@@ -197,7 +196,7 @@ public class UtilisateurService {
 
         utilisateur.setDateMisAJour(LocalDateTime.now());
 
-        Utilisateur savedUser = utilisateurRepository.save(utilisateur);
+        Utilisateur savedUser = repository.save(utilisateur);
         UtilisateurCollection utilisateurCollection = convertToCollection(savedUser);
 
         boolean firestoreAvailable = false;
@@ -264,17 +263,17 @@ public class UtilisateurService {
         if(col.getFirebaseUid() == null || col.getDocId() == null) {
             return null;
         }
-        Optional<Utilisateur> uOpt = this.utilisateurRepository.findById(col.getId());
+        Optional<Utilisateur> uOpt = this.repository.findById(col.getId());
         if(uOpt.isPresent()) {
             Utilisateur u = uOpt.get();
             u.setDocId(col.getDocId());
             u.setFirebaseUid(col.getFirebaseUid());
-            return this.utilisateurRepository.save(u);
+            return this.repository.save(u);
         }
         throw new Exception("[UtilisateurService.updateFirebaseIds]: Utilisateur introuvable pour l'id: "+col.getId());
     }
 
     public Optional<Utilisateur> findByEmail(String email) {
-        return this.utilisateurRepository.findByEmail(email);
+        return this.repository.findByEmail(email);
     }
 }

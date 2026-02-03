@@ -8,6 +8,7 @@ import itu.cloud.entities.Utilisateur;
 import itu.cloud.firebase.services.FirebaseService;
 import itu.cloud.firebase.services.UtilisateurFirebaseService;
 import itu.cloud.security.JwtUtil;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
@@ -28,14 +29,15 @@ public class AuthService {
     private final UtilisateurFirebaseService utilisateurFirebaseService;
     private final RoleService roleService;
     private final JournalService journalService;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthService(JwtUtil jwtUtil,
-                      ParametreService parametreService,
-                      FirebaseService firebaseService,
-                      UtilisateurService utilisateurService,
-                      UtilisateurFirebaseService utilisateurFirebaseService,
-                      RoleService roleService,
-                      JournalService journalService) {
+                       ParametreService parametreService,
+                       FirebaseService firebaseService,
+                       UtilisateurService utilisateurService,
+                       UtilisateurFirebaseService utilisateurFirebaseService,
+                       RoleService roleService,
+                       JournalService journalService, PasswordEncoder passwordEncoder) {
         this.jwtUtil = jwtUtil;
         this.parametreService = parametreService;
         this.firebaseService = firebaseService;
@@ -43,6 +45,7 @@ public class AuthService {
         this.utilisateurFirebaseService = utilisateurFirebaseService;
         this.roleService = roleService;
         this.journalService = journalService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public UtilisateurCollection register(RegisterRequest registerRequest) {
@@ -61,9 +64,11 @@ public class AuthService {
                 throw new RuntimeException("Role invalide");
             }
 
+            String encodedPassword = passwordEncoder.encode(data.getPassword());
+
             Map<String, String> userData = utilisateurService.registerWithDatabase(
                 data.getEmail(),
-                data.getPassword(),
+                encodedPassword,
                 data.getNom(),
                 data.getRole()
             );
@@ -94,7 +99,7 @@ public class AuthService {
             donneesAvecPassword.put("synchronise", utilisateur.isSynchronise());
             donneesAvecPassword.put("dateCreation", utilisateur.getDateCreation());
             donneesAvecPassword.put("dateMiseAJour", utilisateur.getDateMiseAJour());
-            donneesAvecPassword.put("password", data.getPassword()); 
+            donneesAvecPassword.put("password", data.getPassword());
 
             journalService.journaliser(
                 "UtilisateurCollection",
@@ -121,7 +126,7 @@ public class AuthService {
 
             LoginRequest.LoginData data = loginRequest.getData();
 
-            Map<String, String> firebaseUserData;
+            Map<String, String> firebaseUserData = new HashMap<>();
             String userRole = null;
 
             Optional<Utilisateur> u = this.utilisateurService.findByEmail(loginRequest.getData().getEmail());
@@ -133,7 +138,16 @@ public class AuthService {
                 throw new RuntimeException("Aucun compte utilisateur n'appartient à cette adresse email");
             }
 
-            if (loginRequest.getIsOnline() != null && loginRequest.getIsOnline()) {
+            boolean firebaseIsAvailable = false;
+            try {
+                firebaseIsAvailable = this.firebaseService.isAvailable();
+            } catch(Exception e) {
+                System.out.println("[Firebase unavailable]: "+e.getMessage());
+            }
+
+            System.out.println("[Firebase availability]: "+(firebaseIsAvailable ? " available" : " unavailable"));
+
+            if (loginRequest.getIsOnline() != null && loginRequest.getIsOnline() && firebaseIsAvailable) {
                 try {
                     utilisateurService.checkIfBlocked(data.getEmail());
                 } catch (RuntimeException e) {
@@ -163,7 +177,7 @@ public class AuthService {
                     } catch (Exception ex) {
                         System.err.println("Erreur lors de l'incrémentation des tentatives: " + ex.getMessage());
                     }
-                    throw new RuntimeException("Identifiants invalides");
+                    throw new RuntimeException("Identifiants invalides: "+e.getMessage());
                 } catch (RuntimeException e) {
                     if (e.getMessage() != null && e.getMessage().contains("authentification")) {
                         try {
@@ -172,7 +186,7 @@ public class AuthService {
                             System.err.println("Erreur lors de l'incrémentation des tentatives: " + ex.getMessage());
                         }
                     }
-                    throw new RuntimeException("Identifiants invalides");
+                   throw new RuntimeException("Identifiants invalides: "+e.getMessage());
                 }
 
             } else {
