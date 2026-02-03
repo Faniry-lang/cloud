@@ -83,9 +83,11 @@ public class SignalementController {
 
     @PutMapping("/manager/change-status/{signalementId}/{statusLevel}")
     public ResponseEntity<?> changeStatus(@PathVariable Integer signalementId,
-                                         @PathVariable Integer statusLevel) {
+                                         @PathVariable Integer statusLevel,
+                                         @RequestBody(required = false) Map<String, String> requestBody) {
         try {
-            SignalementCollection updatedSignalement = signalementService.changeStatus(signalementId, statusLevel);
+            String dateStr = requestBody != null ? requestBody.get("date") : null;
+            SignalementCollection updatedSignalement = signalementService.changeStatus(signalementId, statusLevel, dateStr);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

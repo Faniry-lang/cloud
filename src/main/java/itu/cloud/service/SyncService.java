@@ -6,10 +6,9 @@ import itu.cloud.entities.Journal;
 import itu.cloud.entities.Signalement;
 import itu.cloud.collections.*;
 import itu.cloud.entities.TypeSignalement;
-import itu.cloud.firebase.services.ParametreFirebaseService;
-import itu.cloud.firebase.services.SignalementFirebaseService;
-import itu.cloud.firebase.services.TypeSignalementFirebaseService;
-import itu.cloud.firebase.services.UtilisateurFirebaseService;
+import itu.cloud.entities.Utilisateur;
+import itu.cloud.firebase.enums.FirestoreOperator;
+import itu.cloud.firebase.services.*;
 import itu.cloud.repositories.JournalRepository;
 import itu.cloud.repositories.SignalementRepository;
 import itu.cloud.repositories.TypeSignalementRepository;
@@ -20,7 +19,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 @Service
 public class SyncService {
@@ -32,6 +33,7 @@ public class SyncService {
     private final SignalementRepository signalementRepository;
     private final TypeSignalementRepository typeSignalementRepository;
     private final JournalRepository journalRepository;
+    private final JournalFirebaseService journalFirebaseService;
     private final JournalService journalService;
     private final GeometryFactory geometryFactory;
     private final UtilisateurService utilisateurService;
@@ -41,7 +43,7 @@ public class SyncService {
                        TypeSignalementFirebaseService typeSignalementFirebaseService, ParametreFirebaseService parametreFirebaseService,
                        SignalementRepository signalementRepository,
                        TypeSignalementRepository typeSignalementRepository,
-                       JournalRepository journalRepository,
+                       JournalRepository journalRepository, JournalFirebaseService journalFirebaseService,
                        JournalService journalService, UtilisateurService utilisateurService) {
         this.signalementFirebaseService = signalementFirebaseService;
         this.utilisateurFirebaseService = utilisateurFirebaseService;
@@ -50,12 +52,15 @@ public class SyncService {
         this.signalementRepository = signalementRepository;
         this.typeSignalementRepository = typeSignalementRepository;
         this.journalRepository = journalRepository;
+        this.journalFirebaseService = journalFirebaseService;
         this.journalService = journalService;
         this.utilisateurService = utilisateurService;
         this.geometryFactory = new GeometryFactory();
     }
 
     public int pull() throws Exception {
+        // TODO: refactoriser
+        int statusUpdated = updateUserStatus();
         List<SignalementCollection> signalements = signalementFirebaseService.find(null);
         int count = 0;
 
@@ -170,5 +175,22 @@ public class SyncService {
         }
 
         return count;
+    }
+
+    public int updateUserStatus() throws Exception {
+        int updatedStatus = 0;
+        List<UtilisateurCollection> ucs = utilisateurFirebaseService.findWhere("bloqueJusqua", FirestoreOperator.NOT_EQUALS, null);
+        for(UtilisateurCollection uc : ucs) {
+            Optional<Utilisateur> uOpt = utilisateurService.findByEmail(uc.getEmail());
+            Utilisateur u = new Utilisateur();
+            if(!uOpt.isPresent()) {
+                System.out.println("Utilisateur introuvable dans la base de données");
+            }
+            u = uOpt.get();
+            u.setBloqueJusqua(LocalDateTime.parse(uc.getBloqueJusqua()));
+            utilisateurService.save(u);
+            updatedStatus++;
+        }
+        return updatedStatus;
     }
 }
